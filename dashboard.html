@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAY73 Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: #f5f6f8;
+    margin: 0;
+    padding: 0;
+  }
+
+  .dashboard-container {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .dashboard-header {
+    margin-bottom: 2rem;
+  }
+
+  .dashboard-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #172b4d;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .dashboard-header p {
+    color: #5e6c84;
+    margin: 0;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 2rem;
+  }
+
+  @media (max-width: 1024px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .dashboard-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f4f5f7;
+  }
+
+  .section-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #172b4d;
+    margin: 0;
+  }
+
+  .section-icon {
+    font-size: 1.5rem;
+  }
+
+  /* AI Projects Section */
+  .project-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .project-card {
+    background: #f4f5f7;
+    border-radius: 6px;
+    padding: 1rem;
+    border-left: 4px solid #0079bf;
+    transition: all 0.2s;
+  }
+
+  .project-card:hover {
+    background: #ebecf0;
+    transform: translateX(4px);
+  }
+
+  .project-card.completed {
+    border-left-color: #61bd4f;
+  }
+
+  .project-card.in-progress {
+    border-left-color: #ff9f1a;
+  }
+
+  .project-title {
+    font-weight: 600;
+    color: #172b4d;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .project-status {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-weight: 500;
+  }
+
+  .project-status.completed {
+    background: #61bd4f;
+    color: white;
+  }
+
+  .project-status.in-progress {
+    background: #ff9f1a;
+    color: white;
+  }
+
+  .project-desc {
+    font-size: 0.875rem;
+    color: #5e6c84;
+    margin-bottom: 0.5rem;
+  }
+
+  .project-links {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+
+  .project-link {
+    font-size: 0.75rem;
+    color: #0079bf;
+    text-decoration: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    background: #e4f0f6;
+    transition: all 0.2s;
+  }
+
+  .project-link:hover {
+    background: #cfe4f0;
+  }
+
+  /* Kanban Board */
+  .kanban-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .kanban-board {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .kanban-column {
+    background: #f4f5f7;
+    border-radius: 6px;
+    padding: 1rem;
+    min-height: 400px;
+  }
+
+  .kanban-column-header {
+    font-weight: 600;
+    color: #172b4d;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .kanban-column-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .kanban-column-count {
+    background: #dfe1e6;
+    color: #172b4d;
+    font-size: 0.75rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 10px;
+  }
+
+  .kanban-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 50px;
+  }
+
+  .kanban-card {
+    background: white;
+    border-radius: 6px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    cursor: move;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .kanban-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+  }
+
+  .kanban-card.dragging {
+    opacity: 0.5;
+  }
+
+  .kanban-card-image {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+  }
+
+  .kanban-card-image-placeholder {
+    width: 100%;
+    height: 120px;
+    background: #f4f5f7;
+    border: 2px dashed #dfe1e6;
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #5e6c84;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .kanban-card-image-placeholder:hover {
+    border-color: #0079bf;
+    color: #0079bf;
+    background: #e4f0f6;
+  }
+
+  .kanban-card-title {
+    font-weight: 600;
+    color: #172b4d;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .kanban-card-desc {
+    font-size: 0.75rem;
+    color: #5e6c84;
+    line-height: 1.4;
+  }
+
+  .kanban-add-card {
+    background: transparent;
+    border: none;
+    color: #5e6c84;
+    padding: 0.5rem;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .kanban-add-card:hover {
+    background: #ebecf0;
+    color: #172b4d;
+  }
+
+  /* Card Form */
+  .card-form {
+    background: white;
+    border-radius: 6px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    margin-bottom: 0.75rem;
+  }
+
+  .card-form input,
+  .card-form textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 2px solid #dfe1e6;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    font-family: inherit;
+  }
+
+  .card-form input:focus,
+  .card-form textarea:focus {
+    outline: none;
+    border-color: #0079bf;
+  }
+
+  .card-form textarea {
+    resize: vertical;
+    min-height: 60px;
+  }
+
+  .card-form-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .btn {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    border: none;
+    font-size: 0.875rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: #0079bf;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #026aa7;
+  }
+
+  .btn-secondary {
+    background: #f4f5f7;
+    color: #172b4d;
+  }
+
+  .btn-secondary:hover {
+    background: #ebecf0;
+  }
+
+  .btn-delete {
+    background: #eb5a46;
+    color: white;
+    margin-left: auto;
+  }
+
+  .btn-delete:hover {
+    background: #cf513d;
+  }
+
+  /* Image Upload Indicator */
+  .upload-indicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 1.5rem 2rem;
+    border-radius: 8px;
+    font-weight: 500;
+    z-index: 1000;
+    display: none;
+  }
+
+  .upload-indicator.active {
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<div class="upload-indicator" id="uploadIndicator">📤 Nahrávám obrázek...</div>
+
+<div class="dashboard-container">
+  <div class="dashboard-header">
+    <h1>🚀 DAY73 Dashboard</h1>
+    <p>Přehled projektů a úkolů</p>
+  </div>
+
+  <div class="dashboard-grid">
+
+    <!-- AI Projects Section -->
+    <div class="dashboard-section">
+      <div class="section-header">
+        <span class="section-icon">🤖</span>
+        <h2>AI Projects</h2>
+      </div>
+
+      <div class="project-list" id="aiProjectsList">
+        <!-- Projects will be loaded here -->
+      </div>
+    </div>
+
+    <!-- My Kanban Section -->
+    <div class="dashboard-section">
+      <div class="section-header">
+        <span class="section-icon">👤</span>
+        <h2>My Kanban</h2>
+      </div>
+
+      <div class="kanban-board">
+
+        <!-- TODO Column -->
+        <div class="kanban-column" data-status="todo">
+          <div class="kanban-column-header">
+            <div class="kanban-column-title">
+              📌 TODO
+              <span class="kanban-column-count" id="todoCount">0</span>
+            </div>
+          </div>
+          <div class="kanban-cards" id="todoCards" data-column="todo"></div>
+          <button class="kanban-add-card" onclick="showAddCardForm('todo')">
+            + Přidat kartu
+          </button>
+        </div>
+
+        <!-- IN PROGRESS Column -->
+        <div class="kanban-column" data-status="doing">
+          <div class="kanban-column-header">
+            <div class="kanban-column-title">
+              🔥 DOING
+              <span class="kanban-column-count" id="doingCount">0</span>
+            </div>
+          </div>
+          <div class="kanban-cards" id="doingCards" data-column="doing"></div>
+          <button class="kanban-add-card" onclick="showAddCardForm('doing')">
+            + Přidat kartu
+          </button>
+        </div>
+
+        <!-- DONE Column -->
+        <div class="kanban-column" data-status="done">
+          <div class="kanban-column-header">
+            <div class="kanban-column-title">
+              ✅ DONE
+              <span class="kanban-column-count" id="doneCount">0</span>
+            </div>
+          </div>
+          <div class="kanban-cards" id="doneCards" data-column="done"></div>
+          <button class="kanban-add-card" onclick="showAddCardForm('done')">
+            + Přidat kartu
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module" src="./shared/firebase.js"></script>
+
+<script type="module">
+import { db, storage } from './shared/firebase.js';
+import {
+  collection,
+  addDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js';
+
+// AI Projects data (hardcoded for now, will be updated by AI in conversations)
+const aiProjects = [
+  {
+    title: "DAY73-Cloud Setup",
+    status: "completed",
+    description: "Kompletní setup vývojové verze s Git, GitHub, Firebase deploy automation",
+    links: [
+      { label: "GitHub", url: "https://github.com/MichalD73/DAY73-cloud" },
+      { label: "Live", url: "https://onlineday73.web.app/DAY73-cloud/grid-app-test.html" }
+    ]
+  },
+  {
+    title: "Manuál stránka",
+    status: "completed",
+    description: "Interaktivní manuál s přehledem projektu, workflow, moduly a dokumentací",
+    links: [
+      { label: "Manual", url: "https://onlineday73.web.app/DAY73-cloud/manual.html" }
+    ]
+  },
+  {
+    title: "Dashboard",
+    status: "in-progress",
+    description: "Nová landing page s AI Projects view a My Kanban board",
+    links: []
+  }
+];
+
+// Render AI Projects
+function renderAIProjects() {
+  const container = document.getElementById('aiProjectsList');
+  container.innerHTML = aiProjects.map(project => `
+    <div class="project-card ${project.status}">
+      <div class="project-title">
+        ${project.title}
+        <span class="project-status ${project.status}">
+          ${project.status === 'completed' ? '✅ Hotovo' : '🔄 Probíhá'}
+        </span>
+      </div>
+      <div class="project-desc">${project.description}</div>
+      ${project.links.length > 0 ? `
+        <div class="project-links">
+          ${project.links.map(link => `
+            <a href="${link.url}" target="_blank" class="project-link">${link.label}</a>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+// Kanban State
+let cards = [];
+let currentEditingCard = null;
+
+// Load cards from Firestore
+async function loadCards() {
+  const cardsRef = collection(db, 'kanban-cards');
+
+  onSnapshot(cardsRef, (snapshot) => {
+    cards = [];
+    snapshot.forEach(doc => {
+      cards.push({ id: doc.id, ...doc.data() });
+    });
+    renderKanban();
+  });
+}
+
+// Render Kanban
+function renderKanban() {
+  ['todo', 'doing', 'done'].forEach(status => {
+    const container = document.getElementById(`${status}Cards`);
+    const statusCards = cards.filter(c => c.status === status);
+
+    container.innerHTML = statusCards.map(card => `
+      <div class="kanban-card"
+           draggable="true"
+           data-id="${card.id}"
+           ondragstart="handleDragStart(event)"
+           ondragend="handleDragEnd(event)">
+        ${card.imageUrl ? `
+          <img src="${card.imageUrl}"
+               class="kanban-card-image"
+               alt="${card.title}"
+               onclick="handleCardImageClick('${card.id}')">
+        ` : `
+          <div class="kanban-card-image-placeholder"
+               onclick="handleCardImageClick('${card.id}')">
+            📷 Ctrl+V pro vložení obrázku
+          </div>
+        `}
+        <div class="kanban-card-title">${card.title}</div>
+        <div class="kanban-card-desc">${card.description || ''}</div>
+      </div>
+    `).join('');
+
+    // Update count
+    document.getElementById(`${status}Count`).textContent = statusCards.length;
+  });
+
+  setupDragAndDrop();
+}
+
+// Show add card form
+window.showAddCardForm = function(status) {
+  const container = document.getElementById(`${status}Cards`);
+
+  // Remove existing forms
+  document.querySelectorAll('.card-form').forEach(form => form.remove());
+
+  const formHtml = `
+    <div class="card-form">
+      <input type="text"
+             id="newCardTitle"
+             placeholder="Název karty..."
+             autofocus>
+      <textarea id="newCardDesc"
+                placeholder="Popis (volitelné)..."></textarea>
+      <div class="card-form-buttons">
+        <button class="btn btn-primary" onclick="addCard('${status}')">
+          Přidat kartu
+        </button>
+        <button class="btn btn-secondary" onclick="cancelCardForm()">
+          Zrušit
+        </button>
+      </div>
+    </div>
+  `;
+
+  container.insertAdjacentHTML('beforeend', formHtml);
+  document.getElementById('newCardTitle').focus();
+};
+
+// Add card
+window.addCard = async function(status) {
+  const title = document.getElementById('newCardTitle').value.trim();
+  const description = document.getElementById('newCardDesc').value.trim();
+
+  if (!title) {
+    alert('Zadej název karty');
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, 'kanban-cards'), {
+      title,
+      description,
+      status,
+      imageUrl: null,
+      createdAt: serverTimestamp()
+    });
+
+    cancelCardForm();
+  } catch (error) {
+    console.error('Error adding card:', error);
+    alert('Chyba při vytváření karty');
+  }
+};
+
+// Cancel form
+window.cancelCardForm = function() {
+  document.querySelectorAll('.card-form').forEach(form => form.remove());
+};
+
+// Drag and Drop
+let draggedCard = null;
+
+window.handleDragStart = function(e) {
+  draggedCard = e.target;
+  e.target.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/html', e.target.innerHTML);
+};
+
+window.handleDragEnd = function(e) {
+  e.target.classList.remove('dragging');
+};
+
+function setupDragAndDrop() {
+  const columns = document.querySelectorAll('.kanban-cards');
+
+  columns.forEach(column => {
+    column.addEventListener('dragover', handleDragOver);
+    column.addEventListener('drop', handleDrop);
+  });
+}
+
+function handleDragOver(e) {
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+  e.dataTransfer.dropEffect = 'move';
+  return false;
+}
+
+async function handleDrop(e) {
+  if (e.stopPropagation) {
+    e.stopPropagation();
+  }
+
+  if (!draggedCard) return false;
+
+  const newStatus = e.currentTarget.dataset.column;
+  const cardId = draggedCard.dataset.id;
+
+  try {
+    await updateDoc(doc(db, 'kanban-cards', cardId), {
+      status: newStatus
+    });
+  } catch (error) {
+    console.error('Error updating card status:', error);
+  }
+
+  return false;
+}
+
+// Handle card image click (for focusing on paste)
+window.handleCardImageClick = function(cardId) {
+  currentEditingCard = cardId;
+  console.log('Ready to paste image for card:', cardId);
+};
+
+// Paste image handler (Ctrl+V)
+document.addEventListener('paste', async (e) => {
+  if (!currentEditingCard) return;
+
+  const items = e.clipboardData?.items;
+  if (!items) return;
+
+  for (let item of items) {
+    if (item.type.indexOf('image') !== -1) {
+      e.preventDefault();
+
+      const blob = item.getAsFile();
+      await uploadCardImage(currentEditingCard, blob);
+      break;
+    }
+  }
+});
+
+// Upload image to Firebase Storage
+async function uploadCardImage(cardId, blob) {
+  const indicator = document.getElementById('uploadIndicator');
+  indicator.classList.add('active');
+
+  try {
+    const storageRef = ref(storage, `kanban-images/${cardId}-${Date.now()}.png`);
+    await uploadBytes(storageRef, blob);
+    const downloadURL = await getDownloadURL(storageRef);
+
+    await updateDoc(doc(db, 'kanban-cards', cardId), {
+      imageUrl: downloadURL
+    });
+
+    currentEditingCard = null;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    alert('Chyba při nahrávání obrázku');
+  } finally {
+    indicator.classList.remove('active');
+  }
+}
+
+// Initialize
+renderAIProjects();
+loadCards();
+</script>
+
+</body>
+</html>
