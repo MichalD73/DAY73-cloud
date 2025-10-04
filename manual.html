@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manuál - DAY73 Cloud</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  .manual-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    overflow: hidden;
+  }
+  .manual-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+    color: white;
+    padding: 3rem 2rem;
+    text-align: center;
+  }
+  .manual-header h1 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  .manual-header p {
+    font-size: 1.125rem;
+    opacity: 0.9;
+  }
+  .manual-content {
+    padding: 3rem 2rem;
+  }
+  .section {
+    margin-bottom: 3rem;
+  }
+  .section h2 {
+    font-size: 1.875rem;
+    font-weight: bold;
+    color: #1e3a5f;
+    margin-bottom: 1rem;
+    border-left: 4px solid #667eea;
+    padding-left: 1rem;
+  }
+  .section h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2c5282;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+  }
+  .section p {
+    color: #4a5568;
+    line-height: 1.8;
+    margin-bottom: 1rem;
+  }
+  .section ul {
+    list-style: none;
+    padding-left: 0;
+  }
+  .section ul li {
+    padding: 0.75rem 0;
+    padding-left: 2rem;
+    position: relative;
+    color: #4a5568;
+    line-height: 1.6;
+  }
+  .section ul li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #667eea;
+    font-weight: bold;
+    font-size: 1.25rem;
+  }
+  .info-box {
+    background: #f7fafc;
+    border-left: 4px solid #667eea;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    border-radius: 0.5rem;
+  }
+  .info-box strong {
+    color: #1e3a5f;
+    font-weight: 600;
+  }
+  .link-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+  }
+  .link-card {
+    background: #f7fafc;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    border: 2px solid #e2e8f0;
+    transition: all 0.3s;
+  }
+  .link-card:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  }
+  .link-card h4 {
+    color: #1e3a5f;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .link-card a {
+    color: #667eea;
+    text-decoration: none;
+    font-size: 0.875rem;
+    word-break: break-all;
+  }
+  .link-card a:hover {
+    text-decoration: underline;
+  }
+  .workflow-step {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    position: relative;
+    padding-left: 4rem;
+  }
+  .workflow-step:before {
+    content: attr(data-step);
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #667eea;
+    color: white;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.25rem;
+  }
+  .workflow-step h4 {
+    color: #1e3a5f;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .workflow-step p {
+    color: #4a5568;
+    margin: 0;
+  }
+  .back-button {
+    display: inline-block;
+    background: #667eea;
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s;
+    margin-top: 2rem;
+  }
+  .back-button:hover {
+    background: #5568d3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+</style>
+</head>
+<body>
+
+<div class="manual-container">
+  <div class="manual-header">
+    <h1>🚀 DAY73-CLOUD</h1>
+    <p>Vývojová verze | Kompletní manuál projektu</p>
+  </div>
+
+  <div class="manual-content">
+
+    <!-- Přehled projektu -->
+    <section class="section">
+      <h2>📋 O projektu</h2>
+      <p>
+        <strong>DAY73-CLOUD</strong> je vývojová verze aplikace Project_73 - moderního grid-based workspace systému s integrací Firebase služeb.
+      </p>
+
+      <div class="info-box">
+        <strong>Důležité:</strong> Toto je bezpečná vývojová kopie. Originál v <code>public/DAY73/</code> zůstává nedotčený.
+      </div>
+
+      <h3>🎯 Hlavní vlastnosti</h3>
+      <ul>
+        <li><strong>Grid systém</strong> - 105 interaktivních boxů pro organizaci úkolů a projektů</li>
+        <li><strong>Modulární architektura</strong> - Banery, Mindmap, Mobil, POKUS moduly</li>
+        <li><strong>Více pohledů</strong> - Grid, Goal Canvas, Notes, Calendar, Assets, Gallery, Snippets</li>
+        <li><strong>Firebase integrace</strong> - Firestore databáze, Auth (Google login), Storage</li>
+        <li><strong>Real-time synchronizace</strong> - Všechny změny se okamžitě ukládají do cloudu</li>
+        <li><strong>Responsivní design</strong> - Funguje na desktop i mobilních zařízeních</li>
+      </ul>
+    </section>
+
+    <!-- Struktura projektu -->
+    <section class="section">
+      <h2>📂 Struktura projektu</h2>
+
+      <div class="workflow-step" data-step="🟢">
+        <h4>DAY73-cloud/</h4>
+        <p><strong>Pracovní verze</strong> - Zde děláme všechny změny a úpravy</p>
+      </div>
+
+      <div class="workflow-step" data-step="🔴">
+        <h4>public/DAY73/</h4>
+        <p><strong>Originál</strong> - Nedotýkat se! Slouží jako referenční kopie</p>
+      </div>
+
+      <div class="workflow-step" data-step="🔵">
+        <h4>public/DAY73-cloud/</h4>
+        <p><strong>Auto-sync</strong> - Automaticky synchronizováno z DAY73-cloud/</p>
+      </div>
+    </section>
+
+    <!-- Workflow -->
+    <section class="section">
+      <h2>🔄 Vývojový workflow</h2>
+
+      <div class="workflow-step" data-step="1">
+        <h4>Edituj soubory</h4>
+        <p>Všechny změny provádíme v <code>DAY73-cloud/</code> složce</p>
+      </div>
+
+      <div class="workflow-step" data-step="2">
+        <h4>Commit změny</h4>
+        <p><code>git add . && git commit -m "popis změn"</code></p>
+      </div>
+
+      <div class="workflow-step" data-step="3">
+        <h4>Auto-sync</h4>
+        <p>Post-commit hook automaticky synchronizuje do <code>public/DAY73-cloud/</code></p>
+      </div>
+
+      <div class="workflow-step" data-step="4">
+        <h4>Push na GitHub</h4>
+        <p><code>git push</code></p>
+      </div>
+
+      <div class="workflow-step" data-step="5">
+        <h4>Deploy na Firebase</h4>
+        <p><code>npm run deploy:cloud</code></p>
+      </div>
+    </section>
+
+    <!-- Odkazy -->
+    <section class="section">
+      <h2>🔗 Důležité odkazy</h2>
+
+      <div class="link-grid">
+        <div class="link-card">
+          <h4>🌐 Live Cloud</h4>
+          <a href="https://onlineday73.web.app/DAY73-cloud/grid-app-test.html" target="_blank">
+            onlineday73.web.app/DAY73-cloud/
+          </a>
+        </div>
+
+        <div class="link-card">
+          <h4>🌐 Live Originál</h4>
+          <a href="https://onlineday73.web.app/DAY73/grid-app-test.html" target="_blank">
+            onlineday73.web.app/DAY73/
+          </a>
+        </div>
+
+        <div class="link-card">
+          <h4>💾 GitHub</h4>
+          <a href="https://github.com/MichalD73/DAY73-cloud" target="_blank">
+            github.com/MichalD73/DAY73-cloud
+          </a>
+        </div>
+
+        <div class="link-card">
+          <h4>🔥 Firebase Console</h4>
+          <a href="https://console.firebase.google.com/project/projecty-73/overview" target="_blank">
+            Firebase Console
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Užitečné příkazy -->
+    <section class="section">
+      <h2>⚡ Užitečné příkazy</h2>
+
+      <div class="info-box">
+        <p><strong>Kontrola pozice:</strong> <code>pwd</code></p>
+        <p><strong>Git status:</strong> <code>git status</code></p>
+        <p><strong>Git remote:</strong> <code>git remote -v</code></p>
+        <p><strong>Manuální sync:</strong> <code>npm run sync:cloud</code></p>
+        <p><strong>Deploy:</strong> <code>npm run deploy:cloud</code></p>
+      </div>
+    </section>
+
+    <!-- Moduly -->
+    <section class="section">
+      <h2>🧩 Dostupné moduly</h2>
+
+      <div class="link-grid">
+        <div class="link-card">
+          <h4>Grid</h4>
+          <p>Hlavní mřížkový workspace s 105 boxy</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Goal Canvas</h4>
+          <p>Plátno pro vizualizaci cílů</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Poznámky</h4>
+          <p>Textový editor pro poznámky</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Notes Lab</h4>
+          <p>Experimentální poznámkový systém</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Struktura (Manifest)</h4>
+          <p>Přehled struktury projektu</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Mindmap</h4>
+          <p>Myšlenkové mapy</p>
+        </div>
+
+        <div class="link-card">
+          <h4>POKUS (1-6)</h4>
+          <p>Experimentální moduly</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Mobil</h4>
+          <p>Mobilní náhled a experimenty</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Banery</h4>
+          <p>Správa bannerů</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Kalendář</h4>
+          <p>Plánování a události</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Assets</h4>
+          <p>Správa souborů a médií</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Galerie</h4>
+          <p>Obrázková galerie</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Kódy (Snippets)</h4>
+          <p>Knihovna kódových úryvků</p>
+        </div>
+
+        <div class="link-card">
+          <h4>Super Modul</h4>
+          <p>Rozšířené funkce</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Technologie -->
+    <section class="section">
+      <h2>🛠️ Technologie</h2>
+      <ul>
+        <li><strong>Frontend:</strong> HTML5, CSS3, Vanilla JavaScript</li>
+        <li><strong>Styling:</strong> Tailwind CSS</li>
+        <li><strong>Backend:</strong> Firebase (Firestore, Auth, Storage, Hosting)</li>
+        <li><strong>Version Control:</strong> Git, GitHub</li>
+        <li><strong>Build Tools:</strong> npm scripts, rsync</li>
+        <li><strong>Editor:</strong> Quill.js pro rich text editing</li>
+      </ul>
+    </section>
+
+    <!-- Dokumentace -->
+    <section class="section">
+      <h2>📚 Dokumentace</h2>
+      <ul>
+        <li><strong>START-HERE.md</strong> - Hlavní přehled projektu</li>
+        <li><strong>CLAUDE-INSTRUCTIONS.md</strong> - Instrukce pro AI asistenty</li>
+        <li><strong>QUICK-START.md</strong> - Rychlý start guide</li>
+        <li><strong>README.md</strong> - Technická dokumentace</li>
+        <li><strong>WORKSPACE-README.md</strong> - Přehled workspace</li>
+      </ul>
+    </section>
+
+    <!-- Bezpečnost -->
+    <section class="section">
+      <h2>🔒 Bezpečnostní pravidla</h2>
+
+      <div class="info-box" style="border-left-color: #f56565; background: #fff5f5;">
+        <strong style="color: #c53030;">⚠️ Důležité:</strong>
+        <ul style="margin-top: 1rem;">
+          <li>❌ Neupravuj soubory v <code>public/DAY73/</code> (originál)</li>
+          <li>❌ Neupravuj soubory v <code>public/DAY73-cloud/</code> (auto-sync)</li>
+          <li>❌ Nevytvářej duplicitní .git složky</li>
+          <li>❌ Nemazej post-commit hook</li>
+          <li>✅ Všechny edity POUZE v <code>DAY73-cloud/</code></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Návrat -->
+    <div style="text-align: center;">
+      <a href="grid-app-test.html" class="back-button">← Zpět do aplikace</a>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
