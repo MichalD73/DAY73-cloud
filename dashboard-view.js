@@ -97,7 +97,11 @@
         onSnapshot(cardsQuery, (snapshot) => {
           this.kanbanCards = [];
           snapshot.forEach(doc => {
-            this.kanbanCards.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            // Filter out archived cards
+            if (!data.archived) {
+              this.kanbanCards.push({ id: doc.id, ...data });
+            }
           });
           this.renderKanban();
         });
@@ -116,9 +120,11 @@
         container.innerHTML = statusCards.map(card => `
           <div class="kanban-card"
                draggable="true"
+               tabindex="0"
                data-id="${card.id}"
                ondragstart="DashboardView.handleDragStart(event)"
-               ondragend="DashboardView.handleDragEnd(event)">
+               ondragend="DashboardView.handleDragEnd(event)"
+               onkeydown="DashboardView.handleCardKeydown(event, '${card.id}')">
             <div class="kanban-card-title">${card.title}</div>
             ${card.imageUrl ? `
               <img src="${card.imageUrl}"
@@ -306,6 +312,32 @@
         if (indicator) {
           indicator.classList.remove('active');
         }
+      }
+    },
+
+    handleCardKeydown: async function(e, cardId) {
+      // Backspace or Delete key
+      if (e.key === 'Backspace' || e.key === 'Delete' || e.keyCode === 8 || e.keyCode === 46) {
+        // Don't trigger if user is typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+          return;
+        }
+        e.preventDefault();
+        await this.archiveCard(cardId);
+      }
+    },
+
+    archiveCard: async function(cardId) {
+      try {
+        const { db, doc, updateDoc } = window.firebase;
+        await updateDoc(doc(db, 'kanban-cards', cardId), {
+          archived: true,
+          archivedAt: new Date()
+        });
+        console.log('[Dashboard] Card archived:', cardId);
+      } catch (error) {
+        console.error('[Dashboard] Error archiving card:', error);
+        alert('Chyba při archivaci karty: ' + error.message);
       }
     }
   };
