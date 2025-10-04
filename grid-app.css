@@ -483,9 +483,9 @@ body.dnd-active .nav-icons { opacity: 0 !important; transform: translate(-50%, 8
   .p73-dropdown-panel::before { display:none; }
   .p73-dropdown-grid { grid-template-columns:1fr; }
 }
-.p73-topbar-actions { margin-left:auto; display:flex; align-items:center; gap:12px; }
+.p73-topbar-actions { margin-left:auto; display:flex; align-items:center; gap:16px; }
 .p73-topbar-status { font-size:11px; color:#6b7280; display:flex; align-items:center; gap:12px; }
-.p73-manual-btn { text-decoration:none; display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background:#6366f1; color:#ffffff; font-weight:600; font-size:14px; transition:all .2s; box-shadow:0 2px 8px rgba(99,102,241,0.3); }
+.p73-manual-btn { text-decoration:none; display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; background:#6366f1; color:#ffffff; font-weight:700; font-size:15px; transition:all .2s; box-shadow:0 2px 8px rgba(99,102,241,0.3); flex-shrink:0; }
 .p73-manual-btn:hover { background:#5558d9; transform:translateY(-1px); box-shadow:0 4px 12px rgba(99,102,241,0.4); }
 .p73-manual-btn:active { transform:translateY(0); }
 .p73-manual-icon { display:block; line-height:1; }
