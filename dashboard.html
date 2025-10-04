@@ -1065,6 +1065,57 @@ window.openCardDetail = function(cardId) {
 
   // Auto-save on input
   editor.oninput = debounce(() => saveCardBody(cardId), 1000);
+
+  // Handle image paste in editor
+  editor.onpaste = async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+
+        // Upload image to Firebase Storage
+        const indicator = document.getElementById('uploadIndicator');
+        indicator.classList.add('active');
+
+        try {
+          const { storage, ref, uploadBytes, getDownloadURL } = window.firebase;
+          const storageRef = ref(storage, `card-body-images/${cardId}-${Date.now()}.png`);
+          await uploadBytes(storageRef, blob);
+          const downloadURL = await getDownloadURL(storageRef);
+
+          // Insert image with URL instead of base64
+          const img = document.createElement('img');
+          img.src = downloadURL;
+          img.style.maxWidth = '100%';
+          img.style.height = 'auto';
+          img.style.margin = '0.5rem 0';
+
+          // Insert at cursor position
+          const selection = window.getSelection();
+          if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(img);
+            range.collapse(false);
+          } else {
+            editor.appendChild(img);
+          }
+
+          // Save immediately after image insert
+          await saveCardBody(cardId);
+        } catch (error) {
+          console.error('[Dashboard] Error uploading image:', error);
+          alert('Chyba při nahrávání obrázku: ' + error.message);
+        } finally {
+          indicator.classList.remove('active');
+        }
+        break;
+      }
+    }
+  };
 };
 
 window.closeCardDetail = function() {
