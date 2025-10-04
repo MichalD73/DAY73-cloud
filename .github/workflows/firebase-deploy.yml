@@ -1,4 +1,4 @@
-name: Sync and Deploy
+name: Deploy to Firebase
 
 on:
   push:
@@ -7,23 +7,26 @@ on:
   workflow_dispatch:
 
 jobs:
-  sync-notification:
-    name: Notify about manual sync needed
+  deploy:
+    name: Deploy to Firebase Hosting
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create sync reminder
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          echo "================================================"
-          echo "✅ DAY73-cloud pushed to GitHub successfully!"
-          echo ""
-          echo "📋 Next step: Run sync script locally"
-          echo "   cd /Users/michaldaniel73/APP73/Workspaces/Workspace7"
-          echo "   npm run sync:cloud"
-          echo "   firebase deploy --only hosting:onlineday73"
-          echo ""
-          echo "💡 TIP: Or use the automated local sync hook"
-          echo "================================================"
+          echo "🚀 Deploying DAY73-cloud to Firebase..."
+          firebase deploy --only hosting:onlineday73 --token "$FIREBASE_TOKEN" --project central-asset-storage --non-interactive
+          echo "✅ Deploy completed!"
