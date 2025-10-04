@@ -264,6 +264,13 @@ body.view-dashboard #dashboard-view {
   box-shadow: 0 8px 16px rgba(0,0,0,0.16);
 }
 
+.kanban-card-title {
+  font-weight: 600;
+  color: #172b4d;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+}
+
 .kanban-card-image {
   width: 100%;
   height: 120px;
@@ -293,13 +300,6 @@ body.view-dashboard #dashboard-view {
   border-color: #0079bf;
   color: #0079bf;
   background: #e4f0f6;
-}
-
-.kanban-card-title {
-  font-weight: 600;
-  color: #172b4d;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
 }
 
 .kanban-card-desc {

@@ -604,6 +604,7 @@ function renderKanban() {
            onmouseenter="currentHoveredCard='${card.id}'"
            onmouseleave="currentHoveredCard=null"
            onkeydown="handleCardKeydown(event, '${card.id}')">
+        <div class="kanban-card-title">${card.title}</div>
         ${card.imageUrl ? `
           <img src="${card.imageUrl}"
                class="kanban-card-image"
@@ -615,7 +616,6 @@ function renderKanban() {
             ${showArchived ? '📦 Archivováno' : '📷 Klikni pro nahrání obrázku nebo Ctrl+V'}
           </div>
         `}
-        <div class="kanban-card-title">${card.title}</div>
         <div class="kanban-card-desc">${card.description || ''}</div>
         ${showArchived ? `
           <button onclick="restoreCard('${card.id}')" class="btn btn-primary" style="margin-top: 0.5rem; width: 100%; font-size: 0.75rem;">
