@@ -66,11 +66,13 @@
 
     loadKanbanCards: async function() {
       try {
-        const { db } = await import('./shared/firebase.js');
-        const { collection, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+        if (!window.firebase || !firebase.firestore) {
+          console.error('[Dashboard] Firebase not loaded');
+          return;
+        }
 
-        const cardsRef = collection(db, 'kanban-cards');
-        onSnapshot(cardsRef, (snapshot) => {
+        const db = firebase.firestore();
+        db.collection('kanban-cards').orderBy('createdAt', 'desc').onSnapshot((snapshot) => {
           this.kanbanCards = [];
           snapshot.forEach(doc => {
             this.kanbanCards.push({ id: doc.id, ...doc.data() });
@@ -161,21 +163,19 @@
       }
 
       try {
-        const { db } = await import('./shared/firebase.js');
-        const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
-
-        await addDoc(collection(db, 'kanban-cards'), {
+        const db = firebase.firestore();
+        await db.collection('kanban-cards').add({
           title,
           description,
           status,
           imageUrl: null,
-          createdAt: serverTimestamp()
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
         this.cancelCardForm();
       } catch (error) {
         console.error('[Dashboard] Error adding card:', error);
-        alert('Chyba při vytváření karty');
+        alert('Chyba při vytváření karty: ' + error.message);
       }
     },
 
@@ -224,10 +224,8 @@
       const cardId = this.draggedCard.dataset.id;
 
       try {
-        const { db } = await import('./shared/firebase.js');
-        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
-
-        await updateDoc(doc(db, 'kanban-cards', cardId), {
+        const db = firebase.firestore();
+        await db.collection('kanban-cards').doc(cardId).update({
           status: newStatus
         });
       } catch (error) {
@@ -268,22 +266,21 @@
       }
 
       try {
-        const { storage, db } = await import('./shared/firebase.js');
-        const { ref, uploadBytes, getDownloadURL } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js');
-        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+        const storage = firebase.storage();
+        const storageRef = storage.ref(`kanban-images/${cardId}-${Date.now()}.png`);
 
-        const storageRef = ref(storage, `kanban-images/${cardId}-${Date.now()}.png`);
-        await uploadBytes(storageRef, blob);
-        const downloadURL = await getDownloadURL(storageRef);
+        await storageRef.put(blob);
+        const downloadURL = await storageRef.getDownloadURL();
 
-        await updateDoc(doc(db, 'kanban-cards', cardId), {
+        const db = firebase.firestore();
+        await db.collection('kanban-cards').doc(cardId).update({
           imageUrl: downloadURL
         });
 
         this.currentEditingCard = null;
       } catch (error) {
         console.error('[Dashboard] Error uploading image:', error);
-        alert('Chyba při nahrávání obrázku');
+        alert('Chyba při nahrávání obrázku: ' + error.message);
       } finally {
         if (indicator) {
           indicator.classList.remove('active');
