@@ -1091,7 +1091,7 @@ fetch(location.href.split('?')[0]).then(r=>r.text()).then(t=>console.log(t.inclu
 <div class="card-detail-overlay" id="cardDetailOverlay" onclick="closeCardDetail()"></div>
 <div class="card-detail-panel" id="cardDetailPanel">
   <div class="card-detail-header">
-    <h3 id="cardDetailTitle">Název karty</h3>
+    <input type="text" id="cardDetailTitle" class="card-detail-title-input" placeholder="Název karty">
     <button onclick="closeCardDetail()" class="btn-close">✕</button>
   </div>
   <div class="card-detail-body">

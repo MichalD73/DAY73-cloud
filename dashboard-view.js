@@ -352,7 +352,11 @@
       this.currentDetailCardId = cardId;
 
       // Set title
-      document.getElementById('cardDetailTitle').textContent = card.title;
+      const titleInput = document.getElementById('cardDetailTitle');
+      titleInput.value = card.title;
+
+      // Save title on change
+      titleInput.oninput = this.debounce(() => this.saveCardTitle(cardId), 1000);
 
       // Set editor content
       const editor = document.getElementById('cardDetailEditor');
@@ -424,12 +428,30 @@
     closeCardDetail: function() {
       // Save before closing
       if (this.currentDetailCardId) {
+        this.saveCardTitle(this.currentDetailCardId);
         this.saveCardBody(this.currentDetailCardId);
       }
 
       document.getElementById('cardDetailOverlay').classList.remove('active');
       document.getElementById('cardDetailPanel').classList.remove('active');
       this.currentDetailCardId = null;
+    },
+
+    saveCardTitle: async function(cardId) {
+      const titleInput = document.getElementById('cardDetailTitle');
+      const title = titleInput.value.trim();
+
+      if (!title) return;
+
+      try {
+        const { db, doc, updateDoc } = window.firebase;
+        await updateDoc(doc(db, 'kanban-cards', cardId), {
+          title: title
+        });
+        console.log('[Dashboard] Card title saved');
+      } catch (error) {
+        console.error('[Dashboard] Error saving card title:', error);
+      }
     },
 
     saveCardBody: async function(cardId) {

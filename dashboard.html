@@ -1049,7 +1049,11 @@ window.openCardDetail = function(cardId) {
   currentDetailCardId = cardId;
 
   // Set title
-  document.getElementById('cardDetailTitle').textContent = card.title;
+  const titleInput = document.getElementById('cardDetailTitle');
+  titleInput.value = card.title;
+
+  // Save title on change
+  titleInput.oninput = debounce(() => saveCardTitle(cardId), 1000);
 
   // Set editor content
   const editor = document.getElementById('cardDetailEditor');
@@ -1121,6 +1125,7 @@ window.openCardDetail = function(cardId) {
 window.closeCardDetail = function() {
   // Save before closing
   if (currentDetailCardId) {
+    saveCardTitle(currentDetailCardId);
     saveCardBody(currentDetailCardId);
   }
 
@@ -1128,6 +1133,23 @@ window.closeCardDetail = function() {
   document.getElementById('cardDetailPanel').classList.remove('active');
   currentDetailCardId = null;
 };
+
+async function saveCardTitle(cardId) {
+  const titleInput = document.getElementById('cardDetailTitle');
+  const title = titleInput.value.trim();
+
+  if (!title) return;
+
+  try {
+    const { db, doc, updateDoc } = window.firebase;
+    await updateDoc(doc(db, 'kanban-cards', cardId), {
+      title: title
+    });
+    console.log('[Dashboard] Card title saved');
+  } catch (error) {
+    console.error('[Dashboard] Error saving card title:', error);
+  }
+}
 
 async function saveCardBody(cardId) {
   const editor = document.getElementById('cardDetailEditor');
@@ -1177,7 +1199,7 @@ init();
 <div class="card-detail-overlay" id="cardDetailOverlay" onclick="closeCardDetail()"></div>
 <div class="card-detail-panel" id="cardDetailPanel">
   <div class="card-detail-header">
-    <h3 id="cardDetailTitle">Název karty</h3>
+    <input type="text" id="cardDetailTitle" class="card-detail-title-input" placeholder="Název karty">
     <button onclick="closeCardDetail()" class="btn-close">✕</button>
   </div>
   <div class="card-detail-body">

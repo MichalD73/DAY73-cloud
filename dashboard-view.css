@@ -483,6 +483,28 @@ body.view-dashboard #dashboard-view {
   color: #172b4d;
 }
 
+.card-detail-title-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #172b4d;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.card-detail-title-input:hover {
+  background: #f4f5f7;
+}
+
+.card-detail-title-input:focus {
+  outline: none;
+  background: #fff;
+  border: 2px solid #0079bf;
+}
+
 .btn-close {
   background: none;
   border: none;
