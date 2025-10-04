@@ -16,12 +16,13 @@
  console.log('[P73] public/DAY73/grid-app-test.html loaded (public-rev-fix-2b)');
 </script>
 
-<link rel="stylesheet" href="/DAY73/grid-app.css" />
-<link rel="stylesheet" href="/DAY73/notes-app.css" />
-<link rel="stylesheet" href="/DAY73/modules/banners/banners.css" />
-<link rel="stylesheet" href="/DAY73/modules/mobile/mobile.css" />
-<link rel="stylesheet" href="/DAY73/modules/pokus/pokus.css" />
-<link rel="stylesheet" href="/DAY73/modules/mindmap/mindmap.css" />
+<link rel="stylesheet" href="/DAY73-cloud/grid-app.css" />
+<link rel="stylesheet" href="/DAY73-cloud/notes-app.css" />
+<link rel="stylesheet" href="/DAY73-cloud/modules/banners/banners.css" />
+<link rel="stylesheet" href="/DAY73-cloud/modules/mobile/mobile.css" />
+<link rel="stylesheet" href="/DAY73-cloud/modules/pokus/pokus.css" />
+<link rel="stylesheet" href="/DAY73-cloud/modules/mindmap/mindmap.css" />
+<link rel="stylesheet" href="/DAY73-cloud/dashboard-view.css" />
 <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css" integrity="sha384-cPa8kzsYWhqpAfWOLWYIw3V0BhPi/m3lrd8tBTPxr2NrYCHRVZ7xy1cEoRGOM/03" crossorigin="anonymous" />
 <script>
  // Set default view to dashboard if none specified
@@ -75,6 +76,7 @@
    <span class="p73-topbar-brand-dot">●</span>Project_73
  </div>
  <nav class="p73-topbar-nav">
+   <a href="?view=dashboard" data-toplink="dashboard" class="p73-topbar-link">Dashboard</a>
    <a href="?view=grid" data-toplink="grid" class="p73-topbar-link">Grid</a>
   <a href="?view=goal-canvas" data-toplink="goal-canvas" class="p73-topbar-link">Goal Canvas</a>
   <a href="?view=elektrocz" data-toplink="elektrocz" class="p73-topbar-link">elektrocz.com</a>
@@ -148,6 +150,7 @@
      if(!nav) return;
      const deployLink = nav.querySelector('#quick-deploy-btn');
      const anchorOrder = [
+       { view:'dashboard', label:'Dashboard' },
        { view:'grid', label:'Grid' },
       { view:'goal-canvas', label:'Goal Canvas' },
       { view:'elektrocz', label:'elektrocz.com' },
@@ -981,6 +984,100 @@ fetch(location.href.split('?')[0]).then(r=>r.text()).then(t=>console.log(t.inclu
  <div class="super-modul-stage" aria-hidden="true">Přidej sem první komponentu nebo sekci podle potřeby.</div>
 </div>
 
+<div id="dashboard-view" class="workspace-dashboard" hidden>
+  <div class="dashboard-container">
+    <div class="dashboard-header">
+      <h1>Dashboard</h1>
+      <p>Přehled projektů a kanban board</p>
+    </div>
+
+    <div class="dashboard-grid">
+      <!-- Left: AI Projects -->
+      <div class="dashboard-section">
+        <div class="section-header">
+          <span class="section-icon">🤖</span>
+          <h2>AI Projects</h2>
+        </div>
+        <div id="aiProjectsList" class="project-list">
+          <!-- Projects rendered by dashboard-view.js -->
+        </div>
+      </div>
+
+      <!-- Right: My Kanban -->
+      <div class="dashboard-section">
+        <div class="section-header">
+          <span class="section-icon">👤</span>
+          <h2>My Kanban</h2>
+        </div>
+        <div class="kanban-board">
+          <!-- TODO Column -->
+          <div class="kanban-column">
+            <div class="kanban-column-header">
+              <div class="kanban-column-title">
+                <span>📋 TODO</span>
+                <span class="kanban-column-count" id="todoCount">0</span>
+              </div>
+            </div>
+            <div class="kanban-cards"
+                 id="todoCards"
+                 data-column="todo"
+                 ondragover="handleDragOver(event)"
+                 ondrop="handleDrop(event, 'todo')">
+              <!-- Cards rendered by dashboard-view.js -->
+            </div>
+            <button class="kanban-add-card" onclick="showAddCardForm('todo')">
+              ➕ Přidat kartu
+            </button>
+          </div>
+
+          <!-- DOING Column -->
+          <div class="kanban-column">
+            <div class="kanban-column-header">
+              <div class="kanban-column-title">
+                <span>🔄 DOING</span>
+                <span class="kanban-column-count" id="doingCount">0</span>
+              </div>
+            </div>
+            <div class="kanban-cards"
+                 id="doingCards"
+                 data-column="doing"
+                 ondragover="handleDragOver(event)"
+                 ondrop="handleDrop(event, 'doing')">
+              <!-- Cards rendered by dashboard-view.js -->
+            </div>
+            <button class="kanban-add-card" onclick="showAddCardForm('doing')">
+              ➕ Přidat kartu
+            </button>
+          </div>
+
+          <!-- DONE Column -->
+          <div class="kanban-column">
+            <div class="kanban-column-header">
+              <div class="kanban-column-title">
+                <span>✅ DONE</span>
+                <span class="kanban-column-count" id="doneCount">0</span>
+              </div>
+            </div>
+            <div class="kanban-cards"
+                 id="doneCards"
+                 data-column="done"
+                 ondragover="handleDragOver(event)"
+                 ondrop="handleDrop(event, 'done')">
+              <!-- Cards rendered by dashboard-view.js -->
+            </div>
+            <button class="kanban-add-card" onclick="showAddCardForm('done')">
+              ➕ Přidat kartu
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Indicator -->
+<div class="upload-indicator" id="uploadIndicator">📤 Nahrávám obrázek...</div>
+
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js" integrity="sha384-QUJ+ckWz1M+a7w0UfG1sEn4pPrbQwSxGm/1TIPyioqXBrwuT9l4f9gdHWLDLbVWI" crossorigin="anonymous"></script>
 <script type="module" src="/DAY73/notes-app.js"></script>
 <script type="module" src="/DAY73/manifest-view.js"></script>
@@ -988,6 +1085,7 @@ fetch(location.href.split('?')[0]).then(r=>r.text()).then(t=>console.log(t.inclu
 <script type="module" src="/DAY73/modules/mobile/mobile.js"></script>
 <script type="module" src="/DAY73/modules/pokus/pokus.js"></script>
 <script type="module" src="/DAY73/modules/mindmap/mindmap.js"></script>
+<script src="/DAY73-cloud/dashboard-view.js"></script>
 <script src="/DAY73/grid-app.js"></script>
 </body>
 </html>

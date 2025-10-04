@@ -18,7 +18,7 @@
        link.classList.toggle('active', target === view);
      });
     document.body.classList.remove(
-      'view-grid','view-snippets','view-calendar','view-deferred','view-assets','view-gallery','view-super-modul','view-goal-canvas','view-notes','view-manifest','view-banners','view-mobile','view-mindmap'
+      'view-grid','view-snippets','view-calendar','view-deferred','view-assets','view-gallery','view-super-modul','view-goal-canvas','view-notes','view-manifest','view-banners','view-mobile','view-mindmap','view-dashboard'
     );
    if (view !== 'notes' && window.P73Notes && typeof window.P73Notes.hide === 'function') {
       window.P73Notes.hide();
@@ -39,6 +39,27 @@
       console.warn('[P73] Mindmap hide() failed:', mindmapHideErr);
     }
   }
+
+    if(view === 'dashboard') {
+      document.body.classList.add('view-dashboard');
+      const dashboardEl = document.getElementById('dashboard-view');
+      if (dashboardEl) {
+        dashboardEl.hidden = false;
+        if (window.DashboardView && typeof window.DashboardView.init === 'function') {
+          try {
+            if (!window.DashboardView._initialized) {
+              window.DashboardView.init();
+              window.DashboardView._initialized = true;
+            }
+          } catch (dashboardErr) {
+            console.warn('[P73] Dashboard module init() failed:', dashboardErr);
+          }
+        }
+      }
+    } else {
+      const dashboardEl = document.getElementById('dashboard-view');
+      if (dashboardEl) dashboardEl.hidden = true;
+    }
 
     if(view === 'notes') {
       document.body.classList.add('view-notes');
