@@ -220,22 +220,48 @@ body.view-dashboard #dashboard-view {
 }
 
 .kanban-card {
-  background: white;
-  border-radius: 6px;
-  padding: 1rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.06);
   cursor: move;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  border: 1px solid rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+
+.kanban-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #0079bf 0%, #0099ff 100%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
 }
 
 .kanban-card:hover {
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.12);
+  transform: translateY(-3px);
+  border-color: rgba(0,121,191,0.2);
+}
+
+.kanban-card:hover::before {
+  opacity: 1;
+}
+
+.kanban-card:focus {
+  outline: none;
+  border-color: #0079bf;
+  box-shadow: 0 0 0 4px rgba(0,121,191,0.12), 0 4px 12px rgba(0,0,0,0.08);
 }
 
 .kanban-card.dragging {
   opacity: 0.5;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.16);
 }
 
 .kanban-card-image {
