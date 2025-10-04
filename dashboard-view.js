@@ -42,6 +42,14 @@
       links: [
         { label: "📄 Přečíst Dokumentaci", url: "DOMAINS-DEPLOY.md" }
       ]
+    },
+    {
+      title: "Dashboard Architecture",
+      status: "note",
+      description: "Struktura Dashboard, refaktoring na sdílený kód (single source of truth)",
+      links: [
+        { label: "📄 Přečíst Dokumentaci", url: "DASHBOARD-ARCHITECTURE.md" }
+      ]
     }
   ];
 
