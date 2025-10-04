@@ -440,6 +440,9 @@
       <div class="section-header">
         <span class="section-icon">👤</span>
         <h2>My Kanban</h2>
+        <button onclick="toggleArchive()" class="btn btn-secondary" style="margin-left: auto; font-size: 0.75rem; padding: 0.25rem 0.75rem;">
+          📦 Archiv
+        </button>
       </div>
 
       <div class="kanban-board">
@@ -550,6 +553,7 @@ function renderAIProjects() {
 // Kanban State
 let cards = [];
 let currentEditingCard = null;
+let showArchived = false;
 
 // Load cards from Firestore
 async function loadCards() {
@@ -558,10 +562,15 @@ async function loadCards() {
     return;
   }
 
-  const { db, collection, onSnapshot } = window.firebase;
+  const { db, collection, query, where, onSnapshot } = window.firebase;
   const cardsRef = collection(db, 'kanban-cards');
 
-  onSnapshot(cardsRef, (snapshot) => {
+  // Query based on archive mode
+  const cardsQuery = showArchived
+    ? query(cardsRef, where('archived', '==', true))
+    : query(cardsRef, where('archived', '!=', true));
+
+  onSnapshot(cardsQuery, (snapshot) => {
     cards = [];
     snapshot.forEach(doc => {
       cards.push({ id: doc.id, ...doc.data() });
@@ -577,24 +586,33 @@ function renderKanban() {
     const statusCards = cards.filter(c => c.status === status);
 
     container.innerHTML = statusCards.map(card => `
-      <div class="kanban-card"
-           draggable="true"
+      <div class="kanban-card ${showArchived ? 'archived' : ''}"
+           draggable="${!showArchived}"
            data-id="${card.id}"
-           ondragstart="handleDragStart(event)"
-           ondragend="handleDragEnd(event)">
+           tabindex="0"
+           ondragstart="${!showArchived ? 'handleDragStart(event)' : ''}"
+           ondragend="${!showArchived ? 'handleDragEnd(event)' : ''}"
+           onmouseenter="currentHoveredCard='${card.id}'"
+           onmouseleave="currentHoveredCard=null"
+           onkeydown="handleCardKeydown(event, '${card.id}')">
         ${card.imageUrl ? `
           <img src="${card.imageUrl}"
                class="kanban-card-image"
                alt="${card.title}"
-               onclick="handleCardImageClick('${card.id}')">
+               onclick="${!showArchived ? `handleCardImageClick('${card.id}')` : ''}">
         ` : `
           <div class="kanban-card-image-placeholder"
-               onclick="handleCardImageClick('${card.id}')">
-            📷 Ctrl+V pro vložení obrázku
+               onclick="${!showArchived ? `handleCardImageClick('${card.id}')` : ''}">
+            ${showArchived ? '📦 Archivováno' : '📷 Klikni pro nahrání obrázku nebo Ctrl+V'}
           </div>
         `}
         <div class="kanban-card-title">${card.title}</div>
         <div class="kanban-card-desc">${card.description || ''}</div>
+        ${showArchived ? `
+          <button onclick="restoreCard('${card.id}')" class="btn btn-primary" style="margin-top: 0.5rem; width: 100%; font-size: 0.75rem;">
+            🔄 Obnovit
+          </button>
+        ` : ''}
       </div>
     `).join('');
 
@@ -720,15 +738,38 @@ async function handleDrop(e) {
   return false;
 }
 
-// Handle card image click (for focusing on paste)
+// Track hovered card for backspace
+let currentHoveredCard = null;
+
+// Handle card image click - open file picker
 window.handleCardImageClick = function(cardId) {
-  currentEditingCard = cardId;
-  console.log('Ready to paste image for card:', cardId);
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      await uploadCardImage(cardId, file);
+    }
+  };
+  input.click();
+};
+
+// Handle card keydown - Backspace to archive
+window.handleCardKeydown = async function(e, cardId) {
+  if (e.key === 'Backspace' || e.keyCode === 8) {
+    e.preventDefault();
+    if (confirm('Archivovat tuto kartu?')) {
+      await archiveCard(cardId);
+    }
+  }
 };
 
 // Paste image handler (Ctrl+V)
 document.addEventListener('paste', async (e) => {
-  if (!currentEditingCard) return;
+  // Use hovered card if available
+  const targetCardId = currentHoveredCard;
+  if (!targetCardId) return;
 
   const items = e.clipboardData?.items;
   if (!items) return;
@@ -738,11 +779,45 @@ document.addEventListener('paste', async (e) => {
       e.preventDefault();
 
       const blob = item.getAsFile();
-      await uploadCardImage(currentEditingCard, blob);
+      await uploadCardImage(targetCardId, blob);
       break;
     }
   }
 });
+
+// Toggle archive view
+window.toggleArchive = function() {
+  showArchived = !showArchived;
+  loadCards();
+};
+
+// Archive card
+async function archiveCard(cardId) {
+  try {
+    const { db, doc, updateDoc, serverTimestamp } = window.firebase;
+    await updateDoc(doc(db, 'kanban-cards', cardId), {
+      archived: true,
+      archivedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('[Dashboard] Error archiving card:', error);
+    alert('Chyba při archivaci karty: ' + error.message);
+  }
+}
+
+// Restore archived card
+window.restoreCard = async function(cardId) {
+  try {
+    const { db, doc, updateDoc } = window.firebase;
+    await updateDoc(doc(db, 'kanban-cards', cardId), {
+      archived: false,
+      archivedAt: null
+    });
+  } catch (error) {
+    console.error('[Dashboard] Error restoring card:', error);
+    alert('Chyba při obnovení karty: ' + error.message);
+  }
+};
 
 // Upload image to Firebase Storage
 async function uploadCardImage(cardId, blob) {
@@ -758,11 +833,9 @@ async function uploadCardImage(cardId, blob) {
     await updateDoc(doc(db, 'kanban-cards', cardId), {
       imageUrl: downloadURL
     });
-
-    currentEditingCard = null;
   } catch (error) {
-    console.error('Error uploading image:', error);
-    alert('Chyba při nahrávání obrázku');
+    console.error('[Dashboard] Error uploading image:', error);
+    alert('Chyba při nahrávání obrázku: ' + error.message);
   } finally {
     indicator.classList.remove('active');
   }
