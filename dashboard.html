@@ -761,7 +761,13 @@ window.handleCardImageClick = function(cardId) {
 
 // Handle card keydown - Backspace to archive
 window.handleCardKeydown = async function(e, cardId) {
-  if (e.key === 'Backspace' || e.keyCode === 8) {
+  // Backspace or Delete key
+  if (e.key === 'Backspace' || e.key === 'Delete' || e.keyCode === 8 || e.keyCode === 46) {
+    // Don't trigger if user is typing in an input
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      return;
+    }
+
     e.preventDefault();
     if (confirm('Archivovat tuto kartu?')) {
       await archiveCard(cardId);
