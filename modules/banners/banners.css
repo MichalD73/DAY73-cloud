@@ -1,0 +1,194 @@
+#banners-view {
+  display: none;
+  margin-left: 300px;
+  padding: 24px;
+}
+body.view-banners #banners-view {
+  display: block;
+}
+#banners-view .banners-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+#banners-view .canvas-container {
+  width: min(100%, 1200px);
+  aspect-ratio: 2600 / 674;
+  transition: all 0.3s ease-in-out;
+  background: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+#banners-view canvas,
+#banners-view .canvas-container img {
+  width: 100%;
+  height: 100%;
+  border-radius: 0.5rem;
+  display: block;
+  cursor: grab;
+  background: #ffffff;
+  object-fit: contain;
+}
+#banners-view canvas:active {
+  cursor: grabbing;
+}
+#banners-view .banner-compare {
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+}
+#banners-view .banner-compare.flex {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#banners-view .template-button,
+#banners-view .sticker-button {
+  transition: all 0.2s ease-in-out;
+}
+#banners-view .template-button:hover,
+#banners-view .sticker-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+#banners-view #stickerGallery {
+  max-height: 200px;
+  overflow-y: auto;
+}
+#banners-view .tab-button.active {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background-color: #eef2ff;
+}
+#banners-view .tab-content {
+  display: none;
+}
+#banners-view .tab-content.active {
+  display: block;
+}
+#banners-view .banners-alert {
+  font-size: 13px;
+  color: #b91c1c;
+}
+#banners-view .banners-section {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 24px;
+  margin-top: 24px;
+}
+#banners-view .banners-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+#banners-view .banners-section-header h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+#banners-view .banners-section-header p {
+  margin: 0;
+  font-size: 13px;
+  color: #4b5563;
+}
+#banners-view .banners-samples-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+#banners-view .banners-sample-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+#banners-view .banners-sample-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.14);
+}
+#banners-view .banners-sample-thumb {
+  width: 100%;
+  aspect-ratio: 2600 / 674;
+  border-radius: 12px;
+  background: #f1f5f9;
+  display: block;
+  object-fit: cover;
+  overflow: hidden;
+}
+#banners-view .banners-sample-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #475569;
+}
+#banners-view .banners-sample-actions {
+  display: flex;
+  gap: 8px;
+}
+#banners-view .banners-sample-btn {
+  flex: 1;
+  border: 1px solid #dbeafe;
+  border-radius: 9999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  background: #f8fafc;
+  color: #1e293b;
+}
+#banners-view .banners-sample-btn:hover {
+  background: #e2e8f0;
+}
+#banners-view .banners-sample-btn--primary {
+  border: 0;
+  background: #2563eb;
+  color: #ffffff;
+}
+#banners-view .banners-sample-btn--primary:hover {
+  background: #1d4ed8;
+}
+#banners-view .banners-sample-empty {
+  font-size: 13px;
+  color: #64748b;
+  border: 1px dashed #cbd5f5;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+#banners-view .banners-progress {
+  width: 100%;
+  background: #e2e8f0;
+  border-radius: 9999px;
+  height: 8px;
+  overflow: hidden;
+  margin-top: 12px;
+  display: none;
+}
+#banners-view .banners-progress[data-active="true"] {
+  display: block;
+}
+#banners-view .banners-progress > div {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #22d3ee);
+  width: 0%;
+  transition: width 0.2s ease;
+}
+@media (max-width: 1024px) {
+  #banners-view {
+    margin-left: 0;
+    padding: 16px;
+  }
+}

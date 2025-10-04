@@ -1,0 +1,209 @@
+:root {
+  color-scheme: light;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f5f7fb;
+  color: #0f172a;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font-family: inherit;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 8px 16px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  color: #111827;
+}
+
+button.danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.lab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 32px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.lab-header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.lab-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+
+.lab-auth {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lab-user-label {
+  font-weight: 600;
+}
+
+.lab-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  padding: 32px;
+}
+
+.lab-status {
+  margin: 0 32px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  font-weight: 500;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.08);
+  display: none;
+}
+
+.lab-status[data-tone='success'] {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+}
+
+.lab-status[data-tone='error'] {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
+.lab-canvas {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lab-hint {
+  margin: 0;
+  color: #64748b;
+}
+
+.lab-placeholder {
+  border: 2px dashed rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05), rgba(14, 165, 233, 0.05));
+}
+
+.lab-placeholder h3 {
+  margin-top: 0;
+}
+
+.lab-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.lab-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+.lab-card h3 {
+  margin-top: 0;
+}
+
+.lab-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lab-card input,
+.lab-card textarea {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  resize: vertical;
+}
+
+.lab-card textarea {
+  min-height: 80px;
+}
+
+.lab-doc-list {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.lab-doc-item {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 12px 16px;
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.lab-doc-item strong {
+  display: block;
+  font-size: 14px;
+}
+
+.lab-doc-item span {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.lab-footer {
+  padding: 16px 32px;
+  text-align: center;
+  color: #64748b;
+}
+
+@media (max-width: 1024px) {
+  .lab-main {
+    grid-template-columns: 1fr;
+  }
+
+  .lab-sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .lab-card {
+    flex: 1;
+  }
+}

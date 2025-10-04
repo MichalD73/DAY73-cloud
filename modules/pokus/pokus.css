@@ -1,0 +1,40 @@
+.p73-nav-badge--pokus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.28);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.p73-topbar-link[data-toplink="pokus"] .p73-nav-badge--pokus {
+  opacity: 0.65;
+}
+
+body.p73-pokus-active .p73-topbar-link[data-toplink="pokus"] .p73-nav-badge--pokus {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+body.p73-pokus-active .p73-topbar-link[data-toplink="pokus"],
+body.p73-pokus-active .p73-topbar-brand-dot {
+  color: #2563eb;
+}
+
+body.p73-pokus-active .workspace-toolbar {
+  border-color: rgba(37, 99, 235, 0.3);
+  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.12);
+}
+
+body.p73-pokus-active #grid-container .box:hover {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}

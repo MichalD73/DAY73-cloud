@@ -1,0 +1,2778 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project_73 - Grid Development [v2.0]</title>
+  <!-- Revision marker (public copy) -->
+  <meta name="p73-revision" content="public-rev-fix-2b-{{TIMESTAMP}}" />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <link rel="apple-touch-icon" href="../favicon.svg" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- ✅ Unified Firebase load + Self-test (prevents race conditions) -->
+  <script type="module">
+    /* (Existing self-test + firebase init remains unchanged below) */
+
+    const selfTestLog = (m, ok = true) => {
+      const el = document.getElementById('selftest-log') || (() => {
+        const box = document.createElement('pre');
+        box.id = 'selftest-log';
+        box.style.cssText = 'background:#111;color:#0f0;padding:12px;border-radius:8px;white-space:pre-wrap;max-width:100%;overflow:auto;font:12px/1.4 ui-monospace,monospace;margin:12px auto';
+        document.body.prepend(box);
+        return box;
+      })();
+      el.textContent += (ok ? '✅ ' : '❌ ') + m + '\n';
+    };
+    try {
+      // 1) Import canonical firebase module (no fallback needed now)
+      const firebaseModule = await import('./firebase.js');
+      // NEW: import centralized storage paths (relative bucket prefixes)
+      const { FIREBASE_STORAGE_FOLDERS } = await import('./src/utils/firebase/storage-paths.js');
+      const {
+        auth, signInAnonymously, onAuthStateChanged,
+        db, doc, setDoc, getDoc, serverTimestamp,
+        storage, ref, uploadBytes, getDownloadURL, deleteObject, listAll,
+        collection, getDocs
+      } = firebaseModule;
+      // 2) Expose to window for any legacy code
+      window.firebase = window.firebase || firebaseModule;
+      if (!auth || !db || !storage) {
+        selfTestLog('Self-test: Firebase SDK not ready', false);
+        console.error('[grid-app-test] Missing core services');
+        return;
+      }
+      // 3) Ensure anonymous auth session (idempotent if already signed in via another tab)
+      if (!auth.currentUser) {
+        try { await signInAnonymously(auth); } catch(e){ console.warn('Anon sign-in attempt issue (may already be signed in):', e?.message||e); }
+      }
+      await new Promise(res => {
+        const t = setTimeout(res, 5000); // safety timeout
+        onAuthStateChanged(auth, () => { clearTimeout(t); res(); });
+      });
+      if (!auth.currentUser) {
+        selfTestLog('Auth: nepodařilo se získat uživatele', false);
+        return;
+      }
+      selfTestLog('Auth: anonymní nebo aktivní uživatel OK (uid=' + auth.currentUser.uid + ')');
+
+      /* ========== DATA SOURCE ROUTER (FS/Storage) ========== */
+      // 1) Mapa výchozích zdrojů pro jednotlivé "view" – elektrocz nyní čerpá z centralizované cesty
+      const DATA_SOURCES_SIMPLE = {
+        grid:      'fs:prompts',
+        elektrocz: `gs:${FIREBASE_STORAGE_FOLDERS.elektroczActive}`, // stored as marker, parsed below
+        plan:      'fs:project73_plan',
+        assets:    'fs:project73_assets',
+        gallery:   'fs:project73_gallery',
+        default:   'fs:prompts'
+      };
+
+      function getActiveSourceSimple() {
+        const u = new URL(location.href);
+        const view = (u.searchParams.get('view') || 'grid').trim().toLowerCase();
+        const srcOverride = u.searchParams.get('src');
+        const src = (srcOverride && srcOverride.trim()) || DATA_SOURCES_SIMPLE[view] || DATA_SOURCES_SIMPLE.default;
+        return { view, src };
+      }
+
+      async function loadFromFirestoreSimple(collectionPath) {
+        try {
+          const { collection, getDocs, query, orderBy, limit } = firebaseModule;
+          const q = query(collection(db, collectionPath), orderBy('createdAt','desc'), limit(200));
+          const snap = await getDocs(q);
+          return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+          // fallback naive read
+          const { collection, getDocs } = firebaseModule;
+            const snap = await getDocs(collection(db, collectionPath));
+          return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+      }
+
+      // UPDATED: expects RELATIVE bucket path (already sanitized) if starting without fs:
+      async function loadFromStorageFolderSimple(relativePath) {
+        // Accept forms: 'gs:relative/path' (marker) or pure relative 'project73-images/...'
+        let p = relativePath;
+        if (p.startsWith('gs:')) p = p.slice(3); // remove marker
+        if (p.startsWith('/')) p = p.slice(1);
+        const rootRef = ref(storage, p);
+        const listing = await listAll(rootRef);
+        const out = [];
+        for (const itemRef of listing.items) {
+          const [url, meta] = await Promise.all([getDownloadURL(itemRef), getMetadataSafe(itemRef)]);
+          out.push({
+            id: itemRef.name,
+            title: itemRef.name,
+            url,
+            contentType: meta.contentType,
+            size: meta.size,
+            updated: meta.updated,
+            type: (meta.contentType || '').startsWith('video/') ? 'video' : 'image'
+          });
+        }
+        return out;
+      }
+      async function getMetadataSafe(itemRef){
+        try { return await firebaseModule.getMetadata(itemRef); } catch { return {}; }
+      }
+
+      async function loadDataForViewSimple() {
+        const { view, src } = getActiveSourceSimple();
+        // Show badge (re-use existing banner if present)
+        const existing = document.getElementById('datasource-badge');
+        if (!existing) {
+          const b = document.createElement('div');
+          b.id = 'datasource-badge';
+          b.style.cssText = 'position:fixed;top:8px;right:8px;z-index:99999;font:12px/1 ui-monospace,monospace;background:#1f2937;color:#fff;border-radius:6px;padding:6px 10px;opacity:.9;white-space:pre;';
+          document.body.appendChild(b);
+        }
+        const badge = document.getElementById('datasource-badge');
+        badge.textContent = `[datasource] ${src}`;
+
+        // --- Explicit elektrocz bypass using centralized path (unless ?src override present) ---
+        if (view === 'elektrocz' && !new URL(location.href).searchParams.get('src')) {
+          try {
+            const fixedRelative = FIREBASE_STORAGE_FOLDERS.elektroczActive; // already relative
+            badge.textContent = `[datasource] storage:${fixedRelative} (explicit)`;
+            const items = await loadFromStorageFolderSimple(fixedRelative);
+            if (typeof window.renderGridItems === 'function') window.renderGridItems(items);
+            else console.log('[ElektroczExplicit] Loaded Storage items', fixedRelative, items);
+            return; // skip generic path handling
+          } catch (e) {
+            console.error('[ElektroczExplicit] load error -> fallback generic', e);
+          }
+        }
+
+        if (src.startsWith('fs:')) {
+          const col = src.slice(3);
+          const items = await loadFromFirestoreSimple(col);
+          if (typeof window.renderGridItems === 'function') window.renderGridItems(items);
+          else console.log('[RouterSimple] Loaded FS items', col, items);
+          return;
+        }
+        // Storage path (may include gs: marker we added above)
+        const items = await loadFromStorageFolderSimple(src);
+        if (typeof window.renderGridItems === 'function') window.renderGridItems(items);
+        else console.log('[RouterSimple] Loaded Storage items', src, items);
+      }
+
+      // Fire immediately after auth success (does not block the remaining self-test steps)
+      loadDataForViewSimple().catch(e => console.error('RouterSimple load error', e));
+      // 4) Firestore write/read probe
+      try {
+        const pingRef = doc(db, 'diagnostics', 'ping');
+        await setDoc(pingRef, { ts: serverTimestamp(), uid: auth.currentUser.uid }, { merge: true });
+        const snap = await getDoc(pingRef);
+        selfTestLog('Firestore: zápis/čtení OK (' + (snap.exists() ? 'dokument existuje' : 'neexistuje') + ')');
+      } catch (e) {
+        selfTestLog('Firestore: chyba zápisu/čtení: ' + (e?.message||e), false);
+      }
+      // 5) Storage probe (upload → URL → list → delete)
+      try {
+        const bytes = new Uint8Array([71,80,84,45,79,75]); // GPT-OK marker
+        const path = `selftest/${auth.currentUser.uid}/probe-${Date.now()}.bin`;
+        const r = ref(storage, path);
+        await uploadBytes(r, bytes, { contentType: 'application/octet-stream' });
+        selfTestLog('Storage: upload OK → ' + path);
+        try {
+          const url = await getDownloadURL(r);
+          selfTestLog('Storage: getDownloadURL OK (' + url.split('?')[0] + ')');
+        } catch(e){ selfTestLog('Storage: getDownloadURL selhalo: ' + (e?.message||e), false); }
+        try {
+          const listing = await listAll(ref(storage, `selftest/${auth.currentUser.uid}`));
+          selfTestLog('Storage: listAll OK (items=' + listing.items.length + ')');
+        } catch (e) { selfTestLog('Storage: listAll přeskočeno – ' + (e?.message||e), false); }
+        try { await deleteObject(r); selfTestLog('Storage: úklid OK (soubor smazán)'); } catch(e){ selfTestLog('Storage: smazání selhalo: ' + (e?.message||e), false); }
+      } catch (e) {
+        selfTestLog('Storage: obecná chyba: ' + (e?.message||e), false);
+      }
+      // 6) Quick Firestore collection visibility test (still using __P73_SOURCE__ if present or fallback)
+      try {
+        const probeCol = (window.__P73_SOURCE__ && window.__P73_SOURCE__.collection) || 'prompts';
+        const testSnap = await getDocs(collection(db, probeCol));
+        selfTestLog(`Firestore: kolekce '${probeCol}' count=${testSnap.size}`);
+        if (testSnap.size > 0) {
+          console.log('[TEST] prompts sample docs:', testSnap.docs.slice(0,3).map(d=>({id:d.id, ...d.data()})));
+        }
+      } catch(e){ selfTestLog(`Firestore: dynamické čtení selhalo: ${e?.message||e}`, false); }
+      selfTestLog('SELF-TEST HOTOVO ✅');
+    } catch (e) {
+      selfTestLog('Self-test: fatální chyba při importu: ' + (e?.message||e), false);
+      console.error('[grid-app-test] Self-test fatal error', e);
+    }
+  </script>
+  <script>
+    console.log('[P73] public/DAY73/grid-app-test.html loaded (public-rev-fix-2b)');
+  </script>
+  
+  <style>
+    /* Styly zůstávají stejné jako v původním souboru */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+    :root { --cell-min: 133px; }
+    body{
+      font-family: 'Inter', sans-serif;
+      background:#f0f4f8; margin:0; padding:24px; display:flex; flex-direction:column; gap:12px;
+    }
+    .row{
+      display:grid;
+      grid-template-columns: repeat(15, minmax(var(--cell-min), 1fr));
+      gap: 12px;
+      padding: 0 8px;
+      overflow-x: auto;
+    }
+    @supports (-webkit-overflow-scrolling: touch) {
+      .row { -webkit-overflow-scrolling: touch; }
+    }
+    .box{
+      height:170px;
+      background:#e2e8f0;
+      border-radius:8px;
+      display:flex; align-items:center; justify-content:center;
+      position: relative;
+      color:#4b5563;
+      box-shadow:0 4px 6px rgba(0,0,0,.1);
+      transition: transform .2s, box-shadow .2s, background 0.2s, opacity 0.2s;
+      text-align:center; white-space:nowrap;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      background-size: cover;
+      background-position: center;
+      cursor: grab;
+    }
+    /* --- Performance: izolace layoutu/paint + deklarace budoucí transformace --- */
+  /* Performance tuning (rev2) */
+  /* Box: pouze paint containment (layout containment může fragmentovat grid a zvyšovat náklady) */
+  .box { contain: paint; will-change: transform; }
+  /* Řádky: virtualizace mimo viewport – prohlížeč může odložit vykreslení */
+  .row { content-visibility: auto; contain-intrinsic-size: 1px 190px; }
+  body.dnd-active .box:hover { transform: none !important; }
+  body.dnd-active .box * { pointer-events: none; }
+    /* Třída .box.ghost byla odstraněna, je nahrazena modernějším přístupem */
+    .box:hover,
+    .box:active,
+    .box:focus {
+      transform: none !important;
+      scale: 1 !important;
+    }
+    .box.dragging { visibility: hidden; z-index: 10; }
+    .box.dragover { outline: 2px solid #60a5fa; outline-offset: -2px; transform:none; }
+    .box.loading {
+      background: #d1d5db; /* Neutrální šedá */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .box.loading::after {
+      content: '';
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(255,255,255,0.5);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    .box-link-badge {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(37,99,235,0.85);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      pointer-events: auto;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    @media (min-width: 1600px){
+      .box{ height:190px; }
+    }
+    #p73-status-banner { position: fixed; left: 16px; right: 16px; top: 16px; z-index: 9999; display:flex; justify-content:center; pointer-events:none; }
+    .p73-banner { pointer-events:auto; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 6px; font-size:13px; box-shadow: 0 6px 18px rgba(0,0,0,0.2); }
+    .p73-banner.error { background: #b91c1c; }
+    #sidebar { position: fixed; left: -280px; top: 0; width: 280px; height: 100%; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 1000; transition: left 0.3s ease; overflow-y: auto; padding: 20px; }
+    #sidebar.active { left: 0; }
+  /* Adjusted to sit below the sticky topbar */
+  #sidebar-toggle { position: fixed; left: 20px; top: 74px; z-index: 1001; background: white; border: none; border-radius: 50%; width: 40px; height: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    #sidebar-toggle:hover { transform: scale(1.05); box-shadow: 0 2px 15px rgba(0,0,0,0.15); }
+    #sidebar-toggle svg { width: 24px; height: 24px; transition: transform 0.3s; }
+    #sidebar-toggle.active svg { transform: rotate(180deg); }
+    .sidebar-header { font-weight: 600; font-size: 18px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+    .sidebar-section { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; }
+    .color-palettes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .color-palette { width: 48px; height: 48px; border-radius: 8px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative; }
+    .color-palette:hover { transform: scale(1.05); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+    .color-palette.active { box-shadow: 0 0 0 3px #3b82f6, 0 4px 8px rgba(0,0,0,0.15); }
+    .color-palette-name { position: absolute; bottom: -20px; left: 0; right: 0; text-align: center; font-size: 10px; color: #666; }
+    .workspace-panels { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+    .workspace-panel { position: relative; width: 100%; height: 80px; border-radius: 8px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; overflow: hidden; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; border: 1px solid #e5e7eb; }
+    .workspace-panel:hover { transform: scale(1.02); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+    .workspace-panel.active { box-shadow: 0 0 0 3px #3b82f6, 0 4px 8px rgba(0,0,0,0.15); }
+    .workspace-panel-name { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); color: white; padding: 4px 8px; font-size: 12px; text-align: center; }
+    .workspace-panel-preview { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: 2px; width: 90%; height: 60px; }
+    .preview-box { background: #e2e8f0; border-radius: 2px; }
+    #detail-panel { position: fixed; right: -560px; top: 0; width: 560px; height: 100%; background: white; box-shadow: -2px 0 10px rgba(0,0,0,0.1); z-index: 1000; transition: right 0.3s ease; overflow-y: auto; padding: 20px; }
+    #detail-panel.active { right: 0; }
+    .detail-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #f0f0f0; }
+    .detail-panel-header h2 { font-weight: 600; font-size: 20px; margin: 0; }
+    .detail-panel-close { background: none; border: none; cursor: pointer; padding: 5px; color: #888; transition: color 0.2s; }
+    .detail-panel-close:hover { color: #333; }
+    .detail-section { margin-bottom: 20px; }
+    .detail-preview { width: 100%; height: 200px; border-radius: 8px; margin-bottom: 15px; background-size: cover; background-position: center; background-color: #f0f4f8; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .nav-icons { position: absolute; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 8px; display: flex; gap: 10px; z-index: 100; opacity: 0; transform: scale(0.8); transition: all 0.2s; pointer-events: none; }
+    .nav-icons.active { opacity: 1; transform: scale(1); pointer-events: all; }
+    .nav-icon { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+    .nav-icon:hover { background: #e0f2fe; transform: translateY(-2px); }
+    .nav-icon svg { width: 20px; height: 20px; color: #444; }
+    .workspace-loading { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .workspace-loading.active { opacity: 1; pointer-events: all; }
+    .workspace-loading-spinner { width: 40px; height: 40px; border: 4px solid rgba(59, 130, 246, 0.3); border-radius: 50%; border-top-color: #3b82f6; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* ================= Topbar (moved from inline styles) ================= */
+    .p73-topbar { position:sticky; top:0; z-index:1200; background:rgba(255,255,255,0.92); backdrop-filter:blur(6px); border:1px solid #e5e7eb; border-left:0; border-right:0; margin:-24px -24px 12px -24px; padding:0 24px; display:flex; align-items:center; gap:28px; height:52px; font-size:14px; }
+    .p73-topbar-brand { font-weight:600; letter-spacing:.5px; color:#111827; display:flex; align-items:center; gap:6px; }
+    .p73-topbar-brand-dot { color:#6366f1; }
+    .p73-topbar-nav { display:flex; gap:18px; }
+    .p73-topbar-link { text-decoration:none; color:#4b5563; padding:6px 4px; display:inline-flex; align-items:center; gap:6px; font-weight:500; border-bottom:2px solid transparent; transition:color .15s, border-color .15s; }
+    .p73-topbar-link:hover { color:#1f2937; }
+    .p73-topbar-link.active { color:#2563eb; font-weight:600; border-color:#2563eb; }
+    .p73-topbar-status { margin-left:auto; font-size:11px; color:#6b7280; display:flex; align-items:center; gap:12px; }
+    #auth-gate { position:fixed; inset:0; background:rgba(15,23,42,0.65); display:flex; align-items:center; justify-content:center; padding:24px; z-index:2200; }
+    #auth-gate.hidden { display:none; }
+    .auth-card { background:white; padding:36px 44px; border-radius:18px; max-width:380px; width:100%; text-align:center; box-shadow:0 40px 80px rgba(15,23,42,0.35); display:flex; flex-direction:column; gap:16px; }
+    .auth-card h2 { margin:0; font-size:20px; color:#111827; font-weight:600; }
+    .auth-card p { margin:0; font-size:14px; color:#4b5563; }
+    .auth-btn { margin:12px auto 0; padding:12px 26px; border-radius:9999px; border:none; background:#2563eb; color:white; font-weight:600; font-size:15px; cursor:pointer; box-shadow:0 8px 18px rgba(37,99,235,0.35); transition:transform .15s, box-shadow .15s, background .15s; display:inline-flex; align-items:center; gap:10px; }
+    .auth-btn:hover { transform:translateY(-1px); box-shadow:0 12px 22px rgba(37,99,235,0.35); background:#1d4ed8; }
+    .auth-btn:disabled { opacity:0.65; cursor:not-allowed; transform:none; box-shadow:none; }
+    .auth-error { min-height:18px; font-size:13px; color:#b91c1c; }
+    .auth-user-chip { display:flex; flex-direction:column; align-items:flex-end; gap:2px; font-size:12px; color:#111827; }
+    .auth-user-name { font-weight:600; }
+    .auth-user-email { color:#6b7280; font-weight:500; }
+    .auth-signout-btn { border:1px solid #d1d5db; background:white; color:#1f2937; border-radius:9999px; font-size:12px; padding:6px 14px; cursor:pointer; transition:all 0.15s; }
+    .auth-signout-btn:hover { background:#2563eb; border-color:#2563eb; color:white; }
+    body.auth-locked { overflow:hidden; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    #calendar-section.calendar-focus { animation: calendarPulse 1.2s ease; box-shadow:0 0 0 3px rgba(99,102,241,0.35); border-radius:12px; }
+    .calendar-view-wrapper { display:none; margin-left:300px; padding:12px 24px; }
+    body.view-calendar .calendar-view-wrapper { display:block; }
+    .calendar-view-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    .calendar-view-title { font-size:20px; font-weight:600; color:#1f2937; }
+    .calendar-view-list { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
+    .calendar-view-card { border:1px solid #e5e7eb; border-radius:12px; padding:16px; background:white; box-shadow:0 6px 14px rgba(15,23,42,0.05); display:flex; flex-direction:column; gap:8px; }
+    .calendar-view-card h4 { margin:0; font-size:15px; color:#111827; font-weight:600; }
+    .calendar-view-card time { font-size:13px; color:#4b5563; }
+    body.view-calendar #grid-container { display:none; }
+    .assets-view-wrapper { display:none; margin-left:300px; padding:12px 24px; }
+    body.view-assets .assets-view-wrapper { display:block; }
+    .assets-view-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    .assets-view-title { font-size:20px; font-weight:600; color:#1f2937; }
+    .assets-view-refresh { padding:6px 14px; border-radius:9999px; border:1px solid #d1d5db; background:white; cursor:pointer; font-size:12px; transition:all 0.15s; }
+    .assets-view-refresh:hover { background:#2563eb; color:white; border-color:#2563eb; }
+    .assets-view-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); }
+    .assets-view-card { background:white; border-radius:12px; border:1px solid #e5e7eb; box-shadow:0 8px 20px rgba(15,23,42,0.06); padding:16px; display:flex; flex-direction:column; gap:6px; }
+    .assets-view-card h4 { margin:0; font-size:15px; font-weight:600; color:#111827; display:flex; align-items:center; gap:6px; }
+    .assets-view-card dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:12px; color:#4b5563; }
+    .assets-view-card dl dt { color:#6b7280; }
+    .assets-view-preview { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px; margin-top:8px; }
+    .assets-preview-item { border:1px solid #e5e7eb; border-radius:8px; padding:6px; background:#f9fafb; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; color:#4b5563; }
+    .assets-preview-thumb { width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:6px; background:#e5e7eb; }
+    .assets-preview-name { width:100%; text-align:center; word-break:break-word; }
+    .assets-modal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,0.55); backdrop-filter:blur(6px); display:none; justify-content:center; align-items:center; z-index:4000; padding:24px; }
+    .assets-modal-backdrop.active { display:flex; }
+    .assets-modal { background:white; border-radius:16px; max-width:960px; width:100%; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 24px 60px rgba(15,23,42,0.35); }
+    .assets-modal-header { padding:18px 24px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; }
+    .assets-modal-header h3 { margin:0; font-size:18px; font-weight:600; color:#111827; }
+    .assets-modal-close { border:0; background:none; font-size:22px; line-height:1; cursor:pointer; color:#4b5563; }
+    .assets-modal-body { padding:20px 24px; overflow:auto; }
+    .assets-modal-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); }
+    .assets-modal-item { border:1px solid #e5e7eb; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:8px; background:#f9fafb; }
+    .assets-modal-thumb { width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:10px; background:#e5e7eb; }
+    .assets-modal-meta { font-size:12px; color:#4b5563; word-break:break-word; }
+    body.assets-modal-open { overflow:hidden; }
+    .gallery-view-wrapper { display:none; margin-left:300px; padding:12px 24px; }
+    body.view-gallery .gallery-view-wrapper { display:block; }
+    .gallery-view-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; gap:12px; }
+    .gallery-view-title { font-size:20px; font-weight:600; color:#1f2937; }
+    .gallery-view-controls { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    .gallery-view-select { padding:6px 12px; border-radius:9999px; border:1px solid #d1d5db; background:white; font-size:12px; color:#1f2937; cursor:pointer; }
+    .gallery-view-refresh { padding:6px 14px; border-radius:9999px; border:1px solid #d1d5db; background:white; cursor:pointer; font-size:12px; transition:all 0.15s; }
+    .gallery-view-refresh:hover { background:#2563eb; border-color:#2563eb; color:white; }
+    .gallery-view-grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
+    .gallery-item { background:white; border-radius:14px; border:1px solid #e5e7eb; box-shadow:0 10px 24px rgba(15,23,42,0.08); overflow:hidden; display:flex; flex-direction:column; }
+    .gallery-item img { width:100%; height:180px; object-fit:cover; background:#e5e7eb; }
+    .gallery-item .meta { padding:10px 14px; font-size:12px; color:#4b5563; display:flex; flex-direction:column; gap:6px; word-break:break-word; }
+    .gallery-delete-btn { align-self:flex-start; padding:5px 10px; border-radius:9999px; border:1px solid #dc2626; background:white; color:#dc2626; cursor:pointer; font-size:11px; font-weight:600; transition:all 0.15s; }
+    .gallery-delete-btn:hover { background:#dc2626; color:white; }
+    .snippet-view-wrapper { display:none; margin-left:300px; padding:12px 24px; }
+    body.view-snippets .snippet-view-wrapper { display:block; }
+    body.view-snippets #grid-container,
+    body.view-snippets #calendar-view,
+    body.view-snippets .assets-view-wrapper,
+    body.view-snippets .gallery-view-wrapper { display:none; }
+    .plan-view-wrapper { display:none; margin-left:300px; padding:12px 24px; }
+    body.view-plan .plan-view-wrapper { display:block; }
+    body.view-plan #grid-container,
+    body.view-plan #calendar-view,
+    body.view-plan .assets-view-wrapper,
+    body.view-plan .gallery-view-wrapper,
+    body.view-plan .snippet-view-wrapper { display:none; }
+    body.view-assets #grid-container { display:none; }
+    body.view-assets #calendar-view { display:none; }
+    body.view-gallery #grid-container { display:none; }
+    body.view-gallery #calendar-view { display:none; }
+    body.view-gallery .assets-view-wrapper { display:none; }
+    .plan-view-header { display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
+    .plan-view-header h2 { font-size:28px; font-weight:700; color:#111827; margin:0; }
+    .plan-view-header p { color:#4b5563; font-size:14px; margin:0; max-width:720px; }
+    .plan-cards { display:grid; gap:20px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+    .plan-card { background:white; border:1px solid #e5e7eb; border-radius:18px; padding:20px; box-shadow:0 12px 32px rgba(15,23,42,0.08); display:flex; flex-direction:column; gap:16px; }
+    .plan-card h3 { font-size:18px; font-weight:600; color:#111827; margin:0; display:flex; align-items:center; gap:8px; }
+    .plan-card p { color:#4b5563; font-size:13px; margin:0; }
+    .plan-links { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; font-size:13px; }
+    .plan-links li { display:flex; flex-direction:column; gap:4px; }
+    .plan-links a { color:#2563eb; text-decoration:none; font-weight:500; }
+    .plan-links a:hover { text-decoration:underline; }
+    .plan-snippet { background:#0f172a; color:#e2e8f0; border-radius:14px; padding:16px; font-size:12px; font-family:'JetBrains Mono','Fira Code',monospace; max-height:220px; overflow:auto; white-space:pre-wrap; }
+    .plan-meta { font-size:12px; color:#6b7280; display:flex; flex-direction:column; gap:4px; }
+    .plan-meta a { color:#2563eb; text-decoration:none; font-weight:500; }
+    .plan-meta a:hover { text-decoration:underline; }
+    .snippet-header { display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
+    .snippet-header h2 { font-size:28px; font-weight:700; color:#111827; }
+    .snippet-header p { color:#4b5563; font-size:14px; margin:0; }
+    .snippet-form { background:white; border:1px solid #e5e7eb; border-radius:18px; padding:24px; margin-bottom:24px; box-shadow:0 12px 32px rgba(15,23,42,0.08); display:grid; gap:16px; }
+    .snippet-form-grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+    .snippet-form-field { display:flex; flex-direction:column; gap:8px; }
+    .snippet-form-field.full { grid-column:1 / -1; }
+    .snippet-form-field label { font-size:12px; font-weight:600; color:#4b5563; text-transform:uppercase; letter-spacing:0.05em; }
+    .snippet-form-field input,
+    .snippet-form-field textarea { border:1px solid #d1d5db; border-radius:12px; padding:10px 12px; font-size:13px; font-family:'Inter', sans-serif; color:#111827; background:white; }
+    .snippet-form-field textarea { min-height:120px; resize:vertical; }
+    .snippet-form-actions { display:flex; flex-wrap:wrap; gap:12px; justify-content:flex-end; }
+    .snippet-button-primary { background:#2563eb; color:white; border:0; padding:10px 20px; border-radius:9999px; font-weight:600; cursor:pointer; transition:background 0.2s; }
+    .snippet-button-primary:hover { background:#1d4ed8; }
+    .snippet-button-secondary { background:white; color:#4b5563; border:1px solid #d1d5db; padding:10px 20px; border-radius:9999px; font-weight:500; cursor:pointer; transition:all 0.2s; }
+    .snippet-button-secondary:hover { background:#f3f4f6; }
+    .snippet-list-header { display:flex; flex-direction:column; gap:12px; margin-bottom:16px; }
+    .snippet-list-header-top { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+    .snippet-list-title { font-size:20px; font-weight:700; color:#111827; margin:0; }
+    .snippet-list-count { font-size:14px; color:#6b7280; }
+    .snippet-search { width:100%; max-width:320px; border:1px solid #d1d5db; border-radius:9999px; padding:10px 16px; font-size:13px; color:#111827; background:white; }
+    .snippet-list { display:grid; gap:20px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+    .snippet-card { background:white; border:1px solid #e5e7eb; border-radius:20px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 16px 34px rgba(15,23,42,0.08); }
+    .snippet-card-thumb { background:#e5e7eb; aspect-ratio:16/9; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:36px; }
+    .snippet-card-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+    .snippet-card-body { padding:20px; display:flex; flex-direction:column; gap:16px; }
+    .snippet-card-title { font-size:18px; font-weight:700; color:#111827; margin:0; }
+    .snippet-card-description { font-size:13px; color:#4b5563; margin:0; }
+    .snippet-card-meta { font-size:11px; color:#9ca3af; text-transform:uppercase; letter-spacing:0.08em; }
+    .snippet-code { background:#0f172a; color:#e2e8f0; border-radius:14px; padding:16px; font-size:12px; font-family:'JetBrains Mono','Fira Code',monospace; max-height:220px; overflow:auto; white-space:pre-wrap; }
+    .snippet-card-actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .snippet-button-copy { background:#059669; color:white; border:0; padding:10px 16px; border-radius:10px; font-weight:600; cursor:pointer; transition:background 0.2s; display:inline-flex; align-items:center; gap:6px; }
+    .snippet-button-copy:hover { background:#047857; }
+    .snippet-button-delete { background:white; color:#dc2626; border:1px solid rgba(220,38,38,0.4); padding:10px 16px; border-radius:10px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .snippet-button-delete:hover { background:#fee2e2; }
+    .snippet-empty { border:2px dashed #d1d5db; border-radius:16px; padding:48px; text-align:center; color:#9ca3af; font-size:14px; background:white; }
+    .snippet-alert { font-size:12px; color:#f97316; }
+    .snippet-upload-group { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
+  #snippet-paste-drop-zone { flex:1 1 220px; min-width:220px; aspect-ratio:16/9; border:2px dashed #cbd5e1; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:12px; color:#64748b; background:linear-gradient(to bottom right,#f8fafc,#f1f5f9); text-align:center; padding:8px; cursor:copy; position:relative; transition:border-color .15s, background .15s, color .15s; }
+  #snippet-paste-drop-zone:hover { border-color:#94a3b8; }
+  #snippet-paste-drop-zone.active { border-color:#2563eb; background:#eff6ff; color:#1e3a8a; }
+  #snippet-paste-drop-zone span { pointer-events:none; line-height:1.3; }
+    .snippet-upload-preview { width:220px; aspect-ratio:16/9; border-radius:14px; background:#e5e7eb; display:flex; align-items:center; justify-content:center; color:#94a3af; font-size:12px; overflow:hidden; position:relative; box-shadow:inset 0 0 0 1px rgba(148,163,184,0.4); }
+    .snippet-upload-preview img { width:100%; height:100%; object-fit:cover; display:block; }
+    .snippet-upload-actions { display:flex; flex-direction:column; gap:10px; min-width:200px; }
+    .snippet-upload-status { font-size:12px; color:#6b7280; }
+    .snippet-button-upload { background:#111827; color:white; border:0; padding:10px 18px; border-radius:9999px; font-weight:600; cursor:pointer; transition:background 0.2s; display:inline-flex; align-items:center; gap:8px; justify-content:center; }
+    .snippet-button-upload:hover { background:#1f2937; }
+    .snippet-button-upload[disabled] { opacity:0.65; cursor:default; }
+    .snippet-button-ghost { background:white; color:#4b5563; border:1px solid #d1d5db; padding:8px 16px; border-radius:9999px; font-weight:500; cursor:pointer; transition:all 0.2s; }
+    .snippet-button-ghost:hover { background:#f3f4f6; }
+    @keyframes calendarPulse {
+      0% { box-shadow:0 0 0 0 rgba(99,102,241,0.45); }
+      50% { box-shadow:0 0 0 6px rgba(99,102,241,0.15); }
+      100% { box-shadow:0 0 0 0 rgba(99,102,241,0); }
+    }
+  /* ================= Palette gradients (was inline) ================= */
+  .palette-blue { background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); }
+  .palette-purple { background: linear-gradient(135deg, #f3e5f5 0%, #ce93d8 100%); }
+  .palette-green { background: linear-gradient(135deg, #f1f8e9 0%, #aed581 100%); }
+  .palette-orange { background: linear-gradient(135deg, #fff3e0 0%, #ffcc80 100%); }
+  .palette-pink { background: linear-gradient(135deg, #fce4ec 0%, #f48fb1 100%); }
+  /* ================= Drag preview (was inline) ================= */
+  #drag-preview { position:absolute; top:-1000px; background:#3b82f6; color:#fff; padding:8px 12px; border-radius:8px; font-size:14px; font-weight:500; box-shadow:0 4px 12px rgba(0,0,0,0.2); z-index:9999; }
+    .super-modul-view { display:none; margin-left:300px; padding:12px 24px; }
+    body.view-super-modul .super-modul-view { display:block; }
+    body.view-super-modul #grid-container,
+    body.view-super-modul #calendar-view,
+    body.view-super-modul .assets-view-wrapper,
+    body.view-super-modul .gallery-view-wrapper,
+    body.view-super-modul .snippet-view-wrapper,
+    body.view-super-modul .plan-view-wrapper { display:none; }
+    .super-modul-header { display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
+    .super-modul-header h2 { font-size:28px; font-weight:700; color:#111827; margin:0; }
+    .super-modul-header p { color:#4b5563; font-size:14px; margin:0; max-width:640px; }
+    .super-modul-stage { border:2px dashed #cbd5e1; border-radius:20px; min-height:320px; background:linear-gradient(135deg,#f8fafc,#eef2ff); display:flex; align-items:center; justify-content:center; color:#64748b; font-size:13px; text-align:center; padding:48px 24px; }
+  </style>
+</head>
+<body>
+  <!-- Early static banner placeholder so we can write into it even if imports fail -->
+  <div id="datasource-banner" style="position:fixed;top:6px;right:6px;z-index:99999;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(17,24,39,.9);color:#a7f3d0;border:1px solid rgba(16,185,129,.5);border-radius:8px;padding:6px 10px;box-shadow:0 2px 10px rgba(0,0,0,.25)"></div>
+  <script type="module">
+    // Minimal early import just to confirm this file version is live
+    import * as fb from './firebase.js';
+    if (!window.firebase) window.firebase = fb; // ensure global fallback
+    fb.showDataSource({ module: 'grid-app-test.html', note: 'start' });
+  </script>
+  <div id="auth-gate" class="auth-gate hidden" role="dialog" aria-modal="true" aria-labelledby="auth-gate-title">
+    <div class="auth-card">
+      <h2 id="auth-gate-title">Přihlášení požadováno</h2>
+      <p>Přihlaste se Google účtem, abyste mohli pracovat s projektem Project_73.</p>
+      <button id="auth-signin-btn" class="auth-btn" type="button">
+        <span>Pokračovat přes Google</span>
+      </button>
+      <div id="auth-error" class="auth-error" role="alert"></div>
+    </div>
+  </div>
+  <!-- Top navigation bar (inline for this standalone file) -->
+  <header id="p73-topbar" class="p73-topbar">
+    <div class="p73-topbar-brand">
+      <span class="p73-topbar-brand-dot">●</span>Project_73
+    </div>
+    <nav class="p73-topbar-nav">
+      <a href="?view=grid" data-toplink="grid" class="p73-topbar-link">Grid</a>
+      <a href="?view=links" data-toplink="links" class="p73-topbar-link">Odkazy</a>
+      <a href="?view=plan" data-toplink="plan" class="p73-topbar-link">Plán</a>
+      <a href="?view=elektrocz" data-toplink="elektrocz" class="p73-topbar-link">elektrocz.com</a>
+  <a href="?view=pokus" data-toplink="pokus" class="p73-topbar-link">pokus</a>
+      <a href="?view=calendar#calendar" data-toplink="calendar" class="p73-topbar-link">Kalendář</a>
+      <a href="?view=assets" data-toplink="assets" class="p73-topbar-link">Assets</a>
+      <a href="?view=gallery" data-toplink="gallery" class="p73-topbar-link">Galerie</a>
+  <a href="?view=snippets" data-toplink="snippets" class="p73-topbar-link">Kódy</a>
+      <a href="?view=super-modul" data-toplink="super-modul" class="p73-topbar-link">Super Modul</a>
+      <a href="#" id="quick-deploy-btn" class="p73-topbar-link" title="Zobrazit rychlé deploy příkazy">Deploy</a>
+    </nav>
+    <div id="p73-topbar-status" class="p73-topbar-status"></div>
+  </header>
+  <!-- Fallback script: pokud by některé odkazy v topbaru chyběly (např. cache staré verze), dynamicky je doplníme -->
+  <script>
+    (function ensureTopbarLinks(){
+      try {
+        const nav = document.querySelector('.p73-topbar-nav');
+        if(!nav) return;
+        const deployLink = nav.querySelector('#quick-deploy-btn');
+        const anchorOrder = [
+          { view:'grid', label:'Grid' },
+          { view:'links', label:'Odkazy' },
+          { view:'plan', label:'Plán' },
+          { view:'elektrocz', label:'elektrocz.com' },
+          { view:'pokus', label:'pokus' },
+          { view:'calendar', label:'Kalendář', href:'?view=calendar#calendar' },
+          { view:'assets', label:'Assets' },
+          { view:'gallery', label:'Galerie' },
+          { view:'snippets', label:'Kódy' },
+          { view:'super-modul', label:'Super Modul' }
+        ];
+        // Vloží chybějící odkazy PŘED Deploy tlačítko zachováním původního pořadí
+        anchorOrder.forEach(item => {
+          if(!nav.querySelector(`[data-toplink="${item.view}"]`)){
+            const a = document.createElement('a');
+            a.className = 'p73-topbar-link';
+            a.dataset.toplink = item.view;
+            a.href = item.href || `?view=${item.view}`;
+            a.textContent = item.label;
+            nav.insertBefore(a, deployLink);
+          }
+        });
+      } catch(err){
+        console.warn('ensureTopbarLinks fallback selhal:', err);
+      }
+    })();
+  </script>
+  <div id="p73-status-banner"></div>
+  
+  <button id="sidebar-toggle" aria-label="Otevřít/zavřít menu">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+  </button>
+  
+  <div id="sidebar">
+    <div class="sidebar-header">Project_73 Menu</div>
+    
+    <div class="sidebar-section">
+      <h3 class="font-medium mb-2">Pracovní plochy</h3>
+      <p class="text-xs text-gray-500 mb-2">Klikni na plochu a pak na box v mřížce</p>
+      <div class="workspace-panels">
+        <!-- Panely budou dynamicky generovány JavaScriptem -->
+      </div>
+      <button id="add-workspace-btn" class="mt-4 w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition">Přidat nový projekt</button>
+    </div>
+    <div class="sidebar-section">
+      <h3 class="font-medium mb-2">Barevné plochy</h3>
+      <p class="text-xs text-gray-500 mb-2">Klikni na barvu a pak na box v mřížce</p>
+      <div class="color-palettes">
+  <div class="color-palette palette-blue" data-color="blue" title="Modrý gradient"><span class="color-palette-name">Modrá</span></div>
+  <div class="color-palette palette-purple" data-color="purple" title="Fialový gradient"><span class="color-palette-name">Fialová</span></div>
+  <div class="color-palette palette-green" data-color="green" title="Zelený gradient"><span class="color-palette-name">Zelená</span></div>
+  <div class="color-palette palette-orange" data-color="orange" title="Oranžový gradient"><span class="color-palette-name">Oranžová</span></div>
+  <div class="color-palette palette-pink" data-color="pink" title="Růžový gradient"><span class="color-palette-name">Růžová</span></div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <h3 class="font-medium mb-2">Nastavení mřížky</h3>
+      <div class="flex flex-col gap-2">
+  <button id="clear-workspace-btn" class="px-3 py-2 bg-blue-100 hover:bg-blue-200 rounded text-sm">Vyčistit všechny boxy</button>
+        <button class="px-3 py-2 bg-blue-100 hover:bg-blue-200 rounded text-sm">Export dat</button>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <h3 class="font-medium mb-2">Informace o projektu</h3>
+      <div class="text-sm">
+        <p>Session ID: <span id="session-id-display">načítání...</span></p>
+        <p>Stav: <span id="firebase-status">načítání...</span></p>
+        <p>Čas načtení: <span id="load-time-display">- ms</span></p>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <h3 class="font-medium mb-2">Statistiky</h3>
+      <div class="text-sm"><p>Celkem boxů: <span id="total-boxes">105</span></p><p>Vyplněno: <span id="filled-boxes">0</span></p></div>
+    </div>
+    <div class="sidebar-section" id="archive-section">
+      <h3 class="font-medium mb-2 flex items-center justify-between">
+        <span>Smazané (archiv)</span>
+        <button id="archive-refresh" class="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded">↻</button>
+      </h3>
+      <div class="text-xs text-gray-500 mb-2">Poslední smazané položky (3 dny)</div>
+      <div id="archive-list" class="flex flex-col gap-2 max-h-48 overflow-auto text-xs"></div>
+    </div>
+    <div class="sidebar-section" id="deferred-section">
+      <h3 class="font-medium mb-2 flex items-center justify-between">
+        <span>Odložené úkoly</span>
+        <button id="deferred-add" class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
+      </h3>
+      <div class="text-xs text-gray-500 mb-2">Rychlé poznámky k pozdějšímu řešení</div>
+      <div class="flex gap-2 mb-2">
+        <input id="deferred-title" type="text" placeholder="Nový úkol..." class="flex-1 px-2 py-1 border rounded text-sm" />
+        <button id="deferred-save" class="text-xs px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">Uložit</button>
+      </div>
+      <div id="deferred-list" class="flex flex-col gap-2 max-h-56 overflow-auto text-xs"></div>
+    </div>
+  <div class="sidebar-section" id="calendar-section" data-anchor="calendar">
+      <h3 class="font-medium mb-2 flex items-center justify-between">
+        <span>Kalendář</span>
+        <a href="#calendar" class="text-[10px] px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded" title="Srolovat dolů na kalendář" id="calendar-jump">⇣</a>
+      </h3>
+      <div class="text-xs text-gray-500 mb-2">Jednoduché plánování pro aktuální projekt</div>
+      <div class="flex flex-col gap-2 mb-2">
+  <input id="calendar-title" type="text" placeholder="Název události" class="px-2 py-1 border rounded text-sm" />
+  <label for="calendar-date" class="sr-only">Datum události</label>
+  <input id="calendar-date" type="date" aria-label="Datum události" class="px-2 py-1 border rounded text-sm" />
+        <button id="calendar-add" class="text-xs px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600">Přidat událost</button>
+      </div>
+      <div id="calendar-list" class="flex flex-col gap-2 max-h-56 overflow-auto text-xs"></div>
+    </div>
+  </div>
+  
+  <div id="detail-panel">
+    <div class="detail-panel-header">
+      <h2>Detail boxu <span id="box-position"></span></h2>
+      <button class="detail-panel-close" aria-label="Zavřít detail"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    </div>
+    <div class="detail-section"><div class="detail-preview" id="box-preview"></div></div>
+    <div class="detail-section">
+      <h3 class="font-medium mb-2">Popis</h3>
+      <textarea id="box-description" class="w-full p-3 border border-gray-300 rounded-lg" rows="4" placeholder="Zadejte popis tohoto boxu..."></textarea>
+      <button id="save-description" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">Uložit popis</button>
+    </div>
+    <div class="detail-section">
+      <h3 class="font-medium mb-2">Vlastnosti</h3>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="p-3 bg-gray-100 rounded-lg"><div class="text-xs text-gray-500">Typ</div><div id="box-type">Standardní</div></div>
+        <div class="p-3 bg-gray-100 rounded-lg"><div class="text-xs text-gray-500">Vytvořeno</div><div id="box-created">-</div></div>
+        <div class="p-3 bg-gray-100 rounded-lg"><div class="text-xs text-gray-500">Poslední úprava</div><div id="box-updated">-</div></div>
+        <div class="p-3 bg-gray-100 rounded-lg"><div class="text-xs text-gray-500">Autor</div><div id="box-author">-</div></div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="nav-icons" id="nav-icons">
+    <div class="nav-icon" data-action="rename" title="Přejmenovat text">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+    </div>
+    <div class="nav-icon" data-action="link" title="Přidat odkaz">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+    </div>
+    <div class="nav-icon" data-action="color" title="Změnit barvu">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z"></path></svg>
+    </div>
+    <div class="nav-icon" data-action="delete" title="Smazat obsah (nebo klávesa Del)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+    </div>
+  </div>
+  
+  <div class="workspace-loading" id="workspace-loading"><div class="workspace-loading-spinner"></div></div>
+
+  <!-- Vlastní (rychlý) náhled pro přetahování -->
+  <div id="drag-preview">Přesunuji...</div>
+
+  <!-- NOVÝ KONTEJNER PRO MŘÍŽKU -->
+  <div id="grid-container"></div>
+  <div id="calendar-view" class="calendar-view-wrapper">
+    <div class="calendar-view-header">
+      <div class="calendar-view-title">Kalendář událostí</div>
+    </div>
+    <div id="calendar-view-list" class="calendar-view-list"></div>
+  </div>
+  <div id="assets-view" class="assets-view-wrapper">
+    <div class="assets-view-header">
+      <div class="assets-view-title">Firebase Storage – Assets</div>
+      <button id="assets-refresh" class="assets-view-refresh">Obnovit</button>
+    </div>
+    <div id="assets-view-content" class="assets-view-grid"></div>
+    <div id="assets-view-empty" class="text-sm text-gray-400"></div>
+  </div>
+  <div id="gallery-view" class="gallery-view-wrapper">
+    <div class="gallery-view-header">
+      <div class="gallery-view-title">Galerie – všechny obrázky</div>
+      <div class="gallery-view-controls">
+        <select id="gallery-filter" class="gallery-view-select">
+          <option value="all">Všechny složky</option>
+        </select>
+        <select id="gallery-sort" class="gallery-view-select">
+          <option value="desc">Největší → Nejmenší</option>
+          <option value="asc">Nejmenší → Největší</option>
+        </select>
+        <button id="gallery-refresh" class="gallery-view-refresh">Obnovit</button>
+      </div>
+    </div>
+    <div id="gallery-view-grid" class="gallery-view-grid"></div>
+    <div id="gallery-view-empty" class="text-sm text-gray-400"></div>
+  </div>
+  <div id="plan-view" class="plan-view-wrapper">
+    <div class="plan-view-header">
+      <h2>📋 Strategický plán</h2>
+      <p>Sdílený přehled priorit pro Project_73. Najdeš zde prompty pro AI asistenty, klíčovou dokumentaci a rychlé úkoly k rozpracování s jednotlivými nástroji.</p>
+    </div>
+    <div class="plan-cards">
+      <section class="plan-card">
+        <h3>🤖 AI asistenti</h3>
+        <p>Preferovaný prompt pro rychlé nastavení Firebase projektů. Zkopíruj do Copilota, Geminia nebo CodeXu podle potřeby.</p>
+        <pre class="plan-snippet">Potřebuji nastavit Firebase v novém projektu s těmito požadavky:
+
+ZÁKLADNÍ KONFIGURACE:
+- Firebase v10+ modular SDK
+- Anonymous authentication
+- Firestore database pro [popis dat]
+- Firebase Storage pro [typ souborů]
+- Real-time synchronizace
+
+KRITICKÉ POŽADAVKY (z Project_73 zkušeností):
+1. Implementuj BROWSER FINGERPRINT systém pro stabilní session ID
+2. Vytvoř FALLBACK strategie pro nalezení existujících dat
+3. Vyvaž se composite indexům - používej JavaScript sorting
+4. Správně nastav Storage bucket bez manual URL
+5. Implementuj localStorage cache pro rychlejší startup
+6. Ujisti se že real-time listenery skutečně updateují UI
+
+STRUKTURA DATABÁZE:
+- Kolekce: [název]-sessions
+- Document ID: session_[timestamp]_[userID]
+- Povinná pole: userId, browserFingerprint, [tvoje data], created, lastModified
+
+POVINNÉ FUNKCE:
+- getBrowserFingerprint() - stable browser ID
+- findSessionByFingerprint() - najdi session podle browseru
+- findAnySessionWithData() - fallback na jakákoliv data
+- updateSessionUser() - propoj data s current user
+- setupRealtimeListener() - real-time sync
+
+DEBUGGING TOOLS:
+- Vytvoř diagnostic page pro testování připojení
+- Přidej console debugging funkce
+- Implementuj manual session loading pro testing
+
+Chci že aplikace funguje SPOLEHLIVĚ napříč page reloads bez ztráty dat.</pre>
+        <div class="plan-meta">
+          <span>Zdroj: <a href="../1-FIREBASE_SOLUTION_GUIDE.md" target="_blank" rel="noopener">1-FIREBASE_SOLUTION_GUIDE.md</a></span>
+          <span>Tip: Ulož si prompt do dokumentu asistenta pro rychlé vložení.</span>
+        </div>
+      </section>
+      <section class="plan-card">
+        <h3>📚 Dokumentace</h3>
+        <p>Klíčové podklady pro nové spolupracovníky a AI asistenty. Klikni na odkaz, otevře se v nové záložce.</p>
+        <ul class="plan-links">
+          <li>
+            <a href="../GRID-SETUP-COMPLETE.md" target="_blank" rel="noopener">GRID-SETUP-COMPLETE.md</a>
+            <span>Postup nasazení grid aplikace od inicializace po produkci.</span>
+          </li>
+          <li>
+            <a href="../DAY73/manuál_copilot_GRIDapp" target="_blank" rel="noopener">manuál_copilot_GRIDapp</a>
+            <span>Krok za krokem průvodce pro GitHub Copilot.</span>
+          </li>
+          <li>
+            <a href="../Projects-Overview.md" target="_blank" rel="noopener">Projects-Overview.md</a>
+            <span>Rychlý přehled aktivních modulů a navázaných promptů.</span>
+          </li>
+        </ul>
+      </section>
+      <section class="plan-card">
+        <h3>✅ Rychlé úkoly</h3>
+        <p>Aktuální priority z interního seznamu úkolů. Vhodné pro rychlé předání do jednotlivých vláken.</p>
+        <ul class="plan-links">
+          <li>
+            <span><strong>Menu „Plán“:</strong> rozšiř obsah o nové články a sekce podle potřeb týmu.</span>
+          </li>
+          <li>
+            <span><strong>Rozdělení kódu:</strong> připrav samostatné moduly pro Copilot (menu), Gemini (analytika) a CodeX (Firebase).</span>
+          </li>
+          <li>
+            <span><strong>Integrace GitHub & doména:</strong> dokonči napojení repozitáře a nastav vlastní doménu s Google přihlášením.</span>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </div>
+  <div id="snippet-library-view" class="snippet-view-wrapper">
+    <div class="snippet-header">
+      <h2>🧠 Knihovna kódů</h2>
+      <p>Ukládejte si často používané části kódu s náhledovým obrázkem a popisem. Všechno se ukládá přímo do Firebase a máte k tomu přístup z jakéhokoli zařízení po přihlášení.</p>
+    </div>
+    <form id="snippet-form" class="snippet-form">
+      <div class="snippet-form-grid">
+        <div class="snippet-form-field">
+          <label for="snippet-title">Název</label>
+          <input id="snippet-title" name="title" type="text" placeholder="Landing page hero, formulář..." required />
+        </div>
+        <div class="snippet-form-field full">
+          <label for="snippet-thumbnail">Náhled (URL obrázku)</label>
+          <input id="snippet-thumbnail" name="thumbnailUrl" type="text" placeholder="https://.../preview.png nebo vlož (Ctrl+V)" />
+        </div>
+        <div class="snippet-form-field full">
+          <label for="snippet-thumbnail-file">Nahrát printscreen</label>
+          <div class="snippet-upload-group">
+            <div id="snippet-upload-preview" class="snippet-upload-preview">Bez náhledu</div>
+            <div id="snippet-paste-drop-zone"><span>Vlož sem printscreen (Ctrl/⌘+V)<br/>nebo přetáhni obrázek</span></div>
+            <div class="snippet-upload-actions">
+              <input id="snippet-thumbnail-file" type="file" accept="image/*" hidden />
+              <div class="flex gap-2">
+                <button type="button" id="snippet-upload-select" class="snippet-button-upload">Vybrat obrázek</button>
+                <button type="button" id="snippet-upload-clear" class="snippet-button-ghost">Odebrat</button>
+              </div>
+              <div class="snippet-upload-status" id="snippet-upload-status">Soubor nevybrán</div>
+              <div class="text-xs text-gray-400">Po nahrání se URL vyplní automaticky.</div>
+            </div>
+          </div>
+        </div>
+        <div class="snippet-form-field full">
+          <label for="snippet-description">Popis</label>
+          <textarea id="snippet-description" name="description" rows="3" placeholder="Krátké poznámky k použití..."></textarea>
+        </div>
+        <div class="snippet-form-field full">
+          <label for="snippet-code">Kód</label>
+          <textarea id="snippet-code" name="code" rows="8" placeholder="Sem vlož kód" required></textarea>
+        </div>
+      </div>
+      <div class="snippet-alert">Tip: Vlož printscreen (Ctrl/⌘+V), přetáhni obrázek nebo vyplň URL – po nahrání se doplní automaticky.</div>
+      <div class="snippet-form-actions">
+        <button type="button" id="snippet-reset" class="snippet-button-secondary">Vymazat formulář</button>
+        <button type="submit" class="snippet-button-primary">Uložit kód</button>
+      </div>
+    </form>
+    <div class="snippet-list-header">
+      <div class="snippet-list-header-top">
+        <h3 class="snippet-list-title">Uložené kódy</h3>
+        <div class="snippet-list-count">Celkem: <span id="snippet-count">0</span></div>
+      </div>
+      <input id="snippet-search" type="search" class="snippet-search" placeholder="Filtrovat podle názvu nebo popisu" />
+    </div>
+  <div id="snippet-empty" class="snippet-empty">Žádné kódy zatím nejsou uložené. Přidej první pomocí formuláře výše.</div>
+    <div id="snippet-list" class="snippet-list"></div>
+  </div>
+  <div id="assets-modal-backdrop" class="assets-modal-backdrop">
+    <div class="assets-modal">
+      <div class="assets-modal-header">
+        <h3 id="assets-modal-title">Assets</h3>
+        <button id="assets-modal-close" class="assets-modal-close" aria-label="Zavřít">×</button>
+      </div>
+      <div class="assets-modal-body">
+        <div id="assets-modal-summary" class="text-sm text-gray-500 mb-4"></div>
+        <div id="assets-modal-grid" class="assets-modal-grid"></div>
+        <div id="assets-modal-empty" class="text-sm text-gray-400"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ✅ Quick Deploy Panel -->
+  <div id="deploy-panel" style="position:fixed; bottom:16px; right:16px; width:360px; background:#111827; color:#f1f5f9; font:12px/1.45 'Inter',sans-serif; padding:14px 16px; border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.35); display:none; z-index:3000;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px;">
+      <strong style="font-size:13px;">⚡ Quick Deploy</strong>
+      <div style="display:flex; gap:4px;">
+        <button id="deploy-mode" style="background:#1e293b;border:0;color:#cbd5e1;cursor:pointer;font-size:11px;padding:4px 10px;border-radius:8px;">Deploy</button>
+        <button id="debug-mode" style="background:#374151;border:0;color:#9ca3baf;cursor:pointer;font-size:11px;padding:4px 10px;border-radius:8px;">Debug</button>
+        <button id="deploy-close" style="background:none;border:0;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1;">×</button>
+      </div>
+    </div>
+    <pre style="margin:0; white-space:pre; overflow:auto; max-height:170px;"><code id="deploy-commands">npm run sync:grid
+npm run build
+firebase deploy --only hosting:onlineday73
+# +functions (pokud změny ve functions/)
+firebase deploy --only hosting:onlineday73,functions
+# Preview (např. PR 123)
+firebase hosting:channel:deploy pr-123 --expires 7d --only hosting:onlineday73
+# Pozn: npm install spouštěj jen při změně závislostí
+</code></pre>
+    <pre id="debug-commands" style="margin:0; white-space:pre; overflow:auto; max-height:170px; display:none;"><code># 🐛 TROUBLESHOOTING: Změny se nezobrazují v browseru
+
+## 1. Cache problém (nejčastější)
+# Hard refresh (vynucený reload):
+Cmd+Shift+R (Mac) nebo Ctrl+Shift+R (PC)
+
+# DevTools disable cache:
+F12 → Network tab → ☑ "Disable cache" → reload
+
+## 2. Dev server cache
+# Restart Vite serveru:
+Ctrl+C
+npm run dev
+
+## 3. Diagnostika v konzoli
+# Zkontroluj element v DOM:
+document.querySelector('[data-toplink="super-modul"]')
+
+# Ověř načtený soubor:
+location.pathname
+fetch(location.href.split('?')[0]).then(r=>r.text()).then(t=>console.log(t.includes('Super Modul')))
+
+## 4. Duplicitní soubory
+# Ujisti se, že upravuješ správný soubor:
+# ✅ DAY73/grid-app-test.html
+# ❌ DAY73/grid-app-test (kopie).html
+
+## 5. URL parametry pro cache-bust:
+?v=1234567890&cache=false
+
+# 💡 TIP: Vždy jako první zkus hard refresh!
+</code></pre>
+    <div style="display:flex; gap:6px; margin-top:10px;">
+      <button id="deploy-copy" style="flex:1; background:#2563eb; border:0; color:#fff; font-weight:600; padding:6px 10px; border-radius:8px; cursor:pointer;">Copy</button>
+      <button id="deploy-min" style="background:#1e293b; border:0; color:#cbd5e1; padding:6px 10px; border-radius:8px; cursor:pointer;">Min</button>
+    </div>
+  </div>
+
+  <div id="super-modul-view" class="super-modul-view">
+    <div class="super-modul-header">
+      <h2>🧩 Super Modul</h2>
+      <p>Tato scéna je připravená na budoucí agregaci modulů. Zatím je prázdná, takže můžeš začít tvořit od nuly.</p>
+    </div>
+    <div class="super-modul-stage" aria-hidden="true">Přidej sem první komponentu nebo sekci podle potřeby.</div>
+  </div>
+
+  <script>
+    // --- Topbar active link highlight (works when this file is standalone) ---
+    (function(){
+      function focusCalendarSection(){
+        requestAnimationFrame(() => {
+          const section = document.getElementById('calendar-section');
+          if (!section) return;
+          section.classList.add('calendar-focus');
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setTimeout(() => section.classList.remove('calendar-focus'), 1200);
+        });
+      }
+
+      function handleViewChange({ shouldScroll = false } = {}){
+        const params = new URLSearchParams(window.location.search);
+        const view = params.get('view') || 'grid';
+        document.querySelectorAll('[data-toplink]').forEach(link => {
+          const target = link.getAttribute('data-toplink');
+          link.classList.toggle('active', target === view);
+        });
+        document.body.classList.remove(
+          'view-grid','view-snippets','view-calendar','view-deferred','view-assets','view-gallery','view-super-modul','view-plan'
+        );
+        if(view === 'snippets') document.body.classList.add('view-snippets');
+        else if(view === 'calendar') document.body.classList.add('view-calendar');
+        else if(view === 'deferred') document.body.classList.add('view-deferred');
+        else if(view === 'assets') document.body.classList.add('view-assets');
+        else if(view === 'gallery') document.body.classList.add('view-gallery');
+        else if(view === 'plan') document.body.classList.add('view-plan');
+        else if(view === 'super-modul') document.body.classList.add('view-super-modul');
+        else document.body.classList.add('view-grid');
+        if(shouldScroll){ window.scrollTo({ top:0, behavior:'smooth'}); }
+      }
+
+      window.addEventListener('popstate', () => handleViewChange({ shouldScroll: true }));
+      handleViewChange({ shouldScroll: true });
+
+      const calendarNav = document.querySelector('[data-toplink="calendar"]');
+      if (calendarNav){
+        calendarNav.addEventListener('click', (event) => {
+          event.preventDefault();
+          const url = new URL(window.location.href);
+          url.searchParams.set('view', 'calendar');
+          const nextUrl = `${url.pathname}?${url.searchParams.toString()}#calendar`;
+          window.history.pushState({}, '', nextUrl);
+          handleViewChange({ shouldScroll: true });
+        });
+      }
+    })();
+
+    const SNIPPET_COLLECTION_ROOT = 'project73-snippets';
+    const SNIPPET_SUBCOLLECTION = 'items';
+    let snippetLibraryData = [];
+    let snippetFilterQuery = '';
+    let snippetLibraryInitialized = false;
+    let snippetLibraryLoading = false;
+    let snippetLibraryUnsubscribe = null;
+    let snippetLibraryError = null;
+
+    function detachSnippetLibraryListener() {
+      if (typeof snippetLibraryUnsubscribe === 'function') {
+        try { snippetLibraryUnsubscribe(); } catch (_) {}
+      }
+      snippetLibraryUnsubscribe = null;
+    }
+
+    function getUserSnippetCollection() {
+      if (!isFirebaseReady || !currentUser) return null;
+      const { db, collection } = window.firebase;
+      return collection(db, SNIPPET_COLLECTION_ROOT, currentUser.uid, SNIPPET_SUBCOLLECTION);
+    }
+
+    function sanitizeFileName(name = '') {
+      return name.toLowerCase().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'screenshot.png';
+    }
+
+    function uploadSnippetThumbnailFile(file, onProgress) {
+      return new Promise((resolve, reject) => {
+        if (!file) {
+          reject(new Error('Soubor nebyl vybrán'));
+          return;
+        }
+        if (!window.firebase || !window.firebase.storage) {
+          reject(new Error('Firebase není inicializováno'));
+          return;
+        }
+        if (!currentUser || !currentUser.uid) {
+          reject(new Error('Pro nahrání se přihlaste')); 
+          return;
+        }
+
+        const { storage, ref, uploadBytesResumable, getDownloadURL } = window.firebase;
+        const uid = currentUser.uid;
+        const extension = (file.type && file.type.includes('/')) ? file.type.split('/')[1] : 'png';
+        const baseName = sanitizeFileName(file.name || `printscreen.${extension}`);
+        const storagePath = `project73-snippet-thumbnails/${uid}/${Date.now()}-${baseName}`;
+        const storageRef = ref(storage, storagePath);
+        const metadata = { contentType: file.type || 'image/png' };
+        // Přečti lokální metadata (rozměry) před samotným uploadem
+        readImageMetadata(file).then(dim => { /* best-effort */ metadata._localWidth = dim.width; metadata._localHeight = dim.height; }).catch(()=>{});
+        const uploadTask = enqueueUpload(() => uploadBytesResumable(storageRef, file, metadata));
+
+        uploadTask.on('state_changed', (snapshot) => {
+          if (typeof onProgress === 'function' && snapshot.totalBytes > 0) {
+            const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+            onProgress(progress);
+          }
+        }, (error) => {
+          reject(error);
+        }, async () => {
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve({ url: downloadURL, storagePath, width: metadata._localWidth, height: metadata._localHeight });
+          } catch (error) {
+            reject(error);
+          }
+        });
+      });
+    }
+
+    function renderSnippetLibrary() {
+      const listEl = document.getElementById('snippet-list');
+      const emptyEl = document.getElementById('snippet-empty');
+      const countEl = document.getElementById('snippet-count');
+      if (!listEl || !emptyEl || !countEl) return;
+
+      if (!isFirebaseReady || !currentUser) {
+        countEl.textContent = '0';
+        listEl.innerHTML = '';
+        listEl.style.display = 'none';
+        emptyEl.textContent = 'Přihlaste se pro ukládání kódů.';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      if (snippetLibraryLoading) {
+        countEl.textContent = snippetLibraryData.length.toString();
+        listEl.innerHTML = '';
+        listEl.style.display = 'none';
+        emptyEl.textContent = 'Načítám kódy z databáze...';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      if (snippetLibraryError) {
+        countEl.textContent = snippetLibraryData.length.toString();
+        listEl.innerHTML = '';
+        listEl.style.display = 'none';
+        emptyEl.textContent = 'Nepodařilo se načíst kódy. Zkuste to prosím znovu.';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      const query = snippetFilterQuery.trim().toLowerCase();
+      const filtered = query
+        ? snippetLibraryData.filter((snippet) => {
+            const haystack = `${snippet.title} ${snippet.description || ''}`.toLowerCase();
+            return haystack.includes(query);
+          })
+        : [...snippetLibraryData];
+
+      countEl.textContent = snippetLibraryData.length.toString();
+      listEl.innerHTML = '';
+
+      if (filtered.length === 0) {
+        emptyEl.textContent = snippetLibraryData.length === 0
+          ? 'Žádné kódy zatím nejsou uložené. Přidej první pomocí formuláře výše.'
+          : 'Žádný kód neodpovídá filtru. Změň hledání nebo přidej nový.';
+        emptyEl.style.display = 'block';
+        listEl.style.display = 'none';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+      listEl.style.display = 'grid';
+
+      filtered.forEach((snippet) => {
+        const card = document.createElement('article');
+        card.className = 'snippet-card';
+        card.dataset.snippetId = snippet.id;
+
+        const thumb = document.createElement('div');
+        thumb.className = 'snippet-card-thumb';
+        if (snippet.thumbnailUrl) {
+          const img = document.createElement('img');
+          img.src = snippet.thumbnailUrl;
+          img.alt = snippet.title;
+          thumb.appendChild(img);
+        } else {
+          thumb.textContent = '🧩';
+        }
+        card.appendChild(thumb);
+
+        const body = document.createElement('div');
+        body.className = 'snippet-card-body';
+
+        const title = document.createElement('h4');
+        title.className = 'snippet-card-title';
+        title.textContent = snippet.title;
+        body.appendChild(title);
+
+        if (snippet.description) {
+          const desc = document.createElement('p');
+          desc.className = 'snippet-card-description';
+          desc.textContent = snippet.description;
+          body.appendChild(desc);
+        }
+
+        const meta = document.createElement('div');
+        meta.className = 'snippet-card-meta';
+        if (snippet.createdAt instanceof Date && !Number.isNaN(snippet.createdAt.valueOf())) {
+          meta.textContent = `Uloženo ${snippet.createdAt.toLocaleString('cs-CZ')}`;
+        } else if (typeof snippet.createdAt === 'string' && snippet.createdAt) {
+          meta.textContent = `Uloženo ${snippet.createdAt}`;
+        } else {
+          meta.textContent = 'Uloženo —';
+        }
+        body.appendChild(meta);
+
+        const code = document.createElement('pre');
+        code.className = 'snippet-code';
+        code.textContent = snippet.code;
+        body.appendChild(code);
+
+        const actions = document.createElement('div');
+        actions.className = 'snippet-card-actions';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.className = 'snippet-button-copy';
+        copyBtn.dataset.snippetAction = 'copy';
+        copyBtn.textContent = 'Kopírovat kód';
+        actions.appendChild(copyBtn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'snippet-button-delete';
+        deleteBtn.dataset.snippetAction = 'delete';
+        deleteBtn.textContent = 'Smazat';
+        actions.appendChild(deleteBtn);
+
+        body.appendChild(actions);
+        card.appendChild(body);
+
+        listEl.appendChild(card);
+      });
+    }
+
+    function attachSnippetRealtimeListener() {
+      const collectionRef = getUserSnippetCollection();
+      if (!collectionRef) {
+        detachSnippetLibraryListener();
+        snippetLibraryData = [];
+        snippetLibraryLoading = false;
+        snippetLibraryError = null;
+        renderSnippetLibrary();
+        return;
+      }
+
+      const { query, orderBy, onSnapshot } = window.firebase;
+      detachSnippetLibraryListener();
+      snippetLibraryLoading = true;
+      snippetLibraryError = null;
+      renderSnippetLibrary();
+
+      try {
+        const q = query(collectionRef, orderBy('createdAt', 'desc'));
+        snippetLibraryUnsubscribe = onSnapshot(q, (snapshot) => {
+          snippetLibraryLoading = false;
+          snippetLibraryError = null;
+          snippetLibraryData = snapshot.docs.map((docSnap) => {
+            const data = docSnap.data() || {};
+            let createdAt = null;
+            const rawCreated = data.createdAt;
+            if (rawCreated && typeof rawCreated.toDate === 'function') {
+              createdAt = rawCreated.toDate();
+            } else if (rawCreated) {
+              createdAt = new Date(rawCreated);
+            }
+            return {
+              id: docSnap.id,
+              title: data.title || '',
+              description: data.description || '',
+              code: data.code || '',
+              thumbnailUrl: data.thumbnailUrl || '',
+              thumbnailStoragePath: data.thumbnailStoragePath || '',
+              createdAt,
+              authorId: data.authorId || currentUser?.uid || ''
+            };
+          });
+          if (snippetLibraryData.length > 1) {
+            snippetLibraryData.sort((a, b) => {
+              const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+              const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+              return bTime - aTime;
+            });
+          }
+          renderSnippetLibrary();
+        }, (error) => {
+          console.error('SnippetLibrary: realtime listener error', error);
+          snippetLibraryLoading = false;
+          snippetLibraryError = error || new Error('Neznámá chyba');
+          renderSnippetLibrary();
+        });
+      } catch (error) {
+        console.error('SnippetLibrary: failed to attach listener', error);
+        snippetLibraryLoading = false;
+        snippetLibraryError = error;
+        renderSnippetLibrary();
+      }
+    }
+
+    function initSnippetLibrary() {
+      if (snippetLibraryInitialized) {
+        attachSnippetRealtimeListener();
+        renderSnippetLibrary();
+        return;
+      }
+
+      snippetLibraryInitialized = true;
+
+      const form = document.getElementById('snippet-form');
+      const resetBtn = document.getElementById('snippet-reset');
+      const searchInput = document.getElementById('snippet-search');
+      const listEl = document.getElementById('snippet-list');
+      const thumbnailUrlInput = document.getElementById('snippet-thumbnail');
+      const fileInput = document.getElementById('snippet-thumbnail-file');
+      const selectBtn = document.getElementById('snippet-upload-select');
+      const clearBtn = document.getElementById('snippet-upload-clear');
+      const statusEl = document.getElementById('snippet-upload-status');
+      const previewEl = document.getElementById('snippet-upload-preview');
+
+      if (!form || !listEl || !searchInput || !thumbnailUrlInput || !fileInput || !selectBtn || !clearBtn || !statusEl || !previewEl) {
+        console.warn('SnippetLibrary: UI elements missing, initialization skipped.');
+        return;
+      }
+
+      let snippetThumbnailUploadInfo = null;
+      let snippetThumbnailPreviewUrl = null;
+      let snippetThumbnailUploading = false;
+
+      const updateStatus = (text, color = '#6b7280') => {
+        statusEl.textContent = text;
+        statusEl.style.color = color;
+      };
+
+      const resetThumbnailPreview = () => {
+        snippetThumbnailUploadInfo = null;
+        if (snippetThumbnailPreviewUrl) {
+          URL.revokeObjectURL(snippetThumbnailPreviewUrl);
+          snippetThumbnailPreviewUrl = null;
+        }
+        previewEl.innerHTML = 'Bez náhledu';
+        updateStatus('Soubor nevybrán');
+        fileInput.value = '';
+      };
+
+      const setPreviewImage = (file) => {
+        if (!file) {
+          resetThumbnailPreview();
+          return;
+        }
+        if (snippetThumbnailPreviewUrl) {
+          URL.revokeObjectURL(snippetThumbnailPreviewUrl);
+        }
+        snippetThumbnailPreviewUrl = URL.createObjectURL(file);
+        previewEl.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = snippetThumbnailPreviewUrl;
+        img.alt = 'Náhled snippetu';
+        previewEl.appendChild(img);
+      };
+
+      const showPreviewFromUrl = (url) => {
+        if (snippetThumbnailPreviewUrl) {
+          URL.revokeObjectURL(snippetThumbnailPreviewUrl);
+          snippetThumbnailPreviewUrl = null;
+        }
+        if (!url) {
+          resetThumbnailPreview();
+          return;
+        }
+        snippetThumbnailUploadInfo = null;
+        previewEl.innerHTML = '';
+        const img = document.createElement('img');
+        img.alt = 'Náhled snippetu';
+        img.src = url;
+        img.onload = () => updateStatus('Náhled z URL', '#6b7280');
+        img.onerror = () => {
+          updateStatus('URL náhledu se nepodařilo načíst.', '#dc2626');
+          previewEl.innerHTML = 'Bez náhledu';
+        };
+        previewEl.appendChild(img);
+      };
+
+      const handleThumbnailFile = async (file) => {
+        if (!file) {
+          return;
+        }
+        if (!isFirebaseReady || !currentUser) {
+          updateStatus('Přihlas se pro nahrání náhledu.', '#dc2626');
+          showBanner('Pro nahrání printscreenů je nutné být přihlášen.', 'error');
+          return;
+        }
+
+        setPreviewImage(file);
+        snippetThumbnailUploading = true;
+        selectBtn.disabled = true;
+        clearBtn.disabled = true;
+        updateStatus('Nahrávání... 0%', '#2563eb');
+
+        try {
+          const result = await uploadSnippetThumbnailFile(file, (progress) => {
+            updateStatus(`Nahrávání... ${progress}%`, '#2563eb');
+          });
+          snippetThumbnailUploadInfo = result; // { url, storagePath, width, height }
+          thumbnailUrlInput.value = result.url;
+          updateStatus('Náhled úspěšně nahrán ✓', '#047857');
+        } catch (error) {
+          console.error('SnippetLibrary: upload failed', error);
+          updateStatus('Chyba při nahrávání.', '#dc2626');
+          showBanner('Nahrání obrázku se nezdařilo.', 'error');
+          resetThumbnailPreview();
+        } finally {
+          snippetThumbnailUploading = false;
+          selectBtn.disabled = false;
+          clearBtn.disabled = false;
+        }
+      };
+
+      selectBtn.addEventListener('click', () => {
+        if (snippetThumbnailUploading) return;
+        fileInput.click();
+      });
+
+      clearBtn.addEventListener('click', () => {
+        resetThumbnailPreview();
+        thumbnailUrlInput.value = '';
+      });
+
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (file) {
+          handleThumbnailFile(file);
+        } else {
+          resetThumbnailPreview();
+        }
+      });
+
+      const handleThumbnailUrlChange = () => {
+        if (snippetThumbnailUploading) return;
+        const url = thumbnailUrlInput.value.trim();
+        if (!url) {
+          resetThumbnailPreview();
+          return;
+        }
+        showPreviewFromUrl(url);
+      };
+
+      thumbnailUrlInput.addEventListener('change', handleThumbnailUrlChange);
+      thumbnailUrlInput.addEventListener('blur', handleThumbnailUrlChange);
+
+      resetThumbnailPreview();
+
+      const submitBtn = form.querySelector('button[type="submit"]');
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const title = form.elements.title?.value?.trim() || '';
+        const description = form.elements.description?.value?.trim() || '';
+        const code = form.elements.code?.value?.trim() || '';
+        const thumbnailUrl = form.elements.thumbnailUrl?.value?.trim() || '';
+
+        if (!title || !code) {
+          alert('Vyplň název i kód.');
+          return;
+        }
+        if (snippetThumbnailUploading) {
+          alert('Počkej, než se dokončí nahrávání náhledu.');
+          return;
+        }
+        if (!isFirebaseReady || !currentUser) {
+          showBanner('Pro ukládání kódů se nejprve přihlaste.', 'error');
+          return;
+        }
+
+        const collectionRef = getUserSnippetCollection();
+        if (!collectionRef) {
+          showBanner('Databáze není připravena. Zkuste to prosím znovu.', 'error');
+          return;
+        }
+
+        const { addDoc, serverTimestamp } = window.firebase;
+        const payload = {
+          title,
+          description,
+          code,
+          thumbnailUrl,
+          thumbnailStoragePath: snippetThumbnailUploadInfo?.storagePath || '',
+          thumbnailWidth: snippetThumbnailUploadInfo?.width || null,
+          thumbnailHeight: snippetThumbnailUploadInfo?.height || null,
+          authorId: currentUser.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+
+        snippetFilterQuery = '';
+        searchInput.value = '';
+
+        let prevText = null;
+        if (submitBtn) {
+          prevText = submitBtn.textContent;
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Ukládám...';
+        }
+
+        try {
+          await addDoc(collectionRef, payload);
+          form.reset();
+          resetThumbnailPreview();
+          showBanner('Kód byl uložen.', 'info');
+        } catch (error) {
+          console.error('SnippetLibrary: save failed', error);
+          showBanner('Kód se nepodařilo uložit.', 'error');
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = prevText || 'Uložit kód';
+          }
+        }
+      });
+
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          form.reset();
+          const titleInput = document.getElementById('snippet-title');
+          if (titleInput) titleInput.focus();
+          resetThumbnailPreview();
+        });
+      }
+
+      searchInput.addEventListener('input', (event) => {
+        snippetFilterQuery = event.target.value || '';
+        renderSnippetLibrary();
+      });
+
+      listEl.addEventListener('click', async (event) => {
+        const actionBtn = event.target.closest('[data-snippet-action]');
+        if (!actionBtn) return;
+        const card = actionBtn.closest('[data-snippet-id]');
+        if (!card) return;
+        const snippetId = card.dataset.snippetId;
+        const snippet = snippetLibraryData.find((item) => item.id === snippetId);
+        if (!snippet) return;
+
+        const action = actionBtn.dataset.snippetAction;
+        if (action === 'copy') {
+          try {
+            await navigator.clipboard.writeText(snippet.code);
+            const original = actionBtn.textContent;
+            actionBtn.textContent = '✓ Zkopírováno';
+            actionBtn.disabled = true;
+            setTimeout(() => {
+              if (!actionBtn.isConnected) return;
+              actionBtn.textContent = original;
+              actionBtn.disabled = false;
+            }, 2000);
+          } catch (error) {
+            console.error('SnippetLibrary: copy failed', error);
+            alert('Nepodařilo se zkopírovat kód.');
+          }
+        }
+
+        if (action === 'delete') {
+          if (!isFirebaseReady || !currentUser) {
+            showBanner('Pro mazání kódů se nejprve přihlaste.', 'error');
+            return;
+          }
+          const confirmed = confirm('Opravdu odstranit tento kód?');
+          if (!confirmed) return;
+          try {
+            const { db, doc, deleteDoc, ref, deleteObject } = window.firebase;
+            const docRef = doc(db, SNIPPET_COLLECTION_ROOT, currentUser.uid, SNIPPET_SUBCOLLECTION, snippetId);
+            await deleteDoc(docRef);
+            if (snippet.thumbnailStoragePath) {
+              try {
+                await deleteObject(ref(window.firebase.storage, snippet.thumbnailStoragePath));
+              } catch (storageErr) {
+                console.debug('SnippetLibrary: storage delete skipped', storageErr);
+              }
+            }
+            showBanner('Kód byl odebrán.', 'info');
+          } catch (error) {
+            console.error('SnippetLibrary: delete failed', error);
+            showBanner('Kód se nepodařilo odstranit.', 'error');
+          }
+        }
+      });
+      // ================================================
+      // Clipboard Paste (image -> dataURL preview + storage)
+      // ================================================
+      const pasteAllowedTags = new Set(['INPUT','TEXTAREA']);
+      document.addEventListener('paste', async (e) => {
+        const wrapper = document.getElementById('snippet-library-view');
+        if (!wrapper) return;
+        // Viditelnost: kontrolujeme display / offsetParent místo pouze class.
+        const isVisible = wrapper.offsetParent !== null || document.body.classList.contains('view-snippets');
+        if (!isVisible) return;
+        if (!e.clipboardData) return;
+        console.debug('[PasteHandler] Paste event detected, analyzing clipboard items...');
+        // Informativní status, pokud ještě nic neprobíhá
+        if (!snippetThumbnailUploading) {
+          updateStatus('Analyzuji clipboard…', '#6b7280');
+        }
+        const active = document.activeElement;
+        // Pokud fokus není ve formuláři ani inputu, ale jsme ve viditelné sekci, dovolíme vložení.
+        if (active && active !== document.body) {
+          // pass – neblokujeme, jen info
+        } else {
+          // Auto-focus title field for convenience
+          const titleInput = document.getElementById('snippet-title');
+          if (titleInput) titleInput.focus();
+        }
+        const items = Array.from(e.clipboardData.items || []);
+        let imgItem = items.find(i => i.type && i.type.startsWith('image/'));
+        // Fallback: některé aplikace vkládají image jako image/png; to už pokrývá startsWith
+        // Pokud nic nenalezeno, zkusíme asynchronous clipboard API (Chromium-based)
+        if (!imgItem && navigator.clipboard && navigator.clipboard.read) {
+          try {
+            console.debug('[PasteHandler] Trying navigator.clipboard.read() fallback');
+            const clipboardItems = await navigator.clipboard.read();
+            for (const ci of clipboardItems) {
+              for (const type of ci.types) {
+                if (type.startsWith('image/')) {
+                  const blob = await ci.getType(type);
+                  imgItem = { getAsFile: () => blob, type };
+                  break;
+                }
+              }
+              if (imgItem) break;
+            }
+          } catch (err) {
+            console.debug('[PasteHandler] navigator.clipboard.read() failed', err);
+          }
+        }
+        if (!imgItem) {
+          updateStatus('Clipboard neobsahuje obrázek. (Použij PrintScreen nebo zkopíruj obrázek)', '#dc2626');
+          const zoneNF = document.getElementById('snippet-paste-drop-zone');
+          if (zoneNF){
+            zoneNF.classList.add('active');
+            setTimeout(()=> zoneNF.classList.remove('active'), 800);
+          }
+          return;
+        }
+        const file = imgItem.getAsFile();
+        if (!file) return;
+        // Pokud už probíhá upload do cloudu, nechceme zasahovat
+        if (snippetThumbnailUploading) return;
+        // Pokud je uživatel přihlášen a Firebase připravené -> rovnou upload jako u file inputu
+        if (isFirebaseReady && currentUser) {
+          updateStatus('Uploaduji vložený printscreen...', '#2563eb');
+          handleThumbnailFile(file); // využije existující workflow (progress, preview, URL)
+        } else {
+          const reader = new FileReader();
+          updateStatus('Zpracovávám vložený obrázek (lokálně)...', '#2563eb');
+          reader.onload = () => {
+            snippetThumbnailUploadInfo = null; // dataURL lokální
+            const dataUrl = reader.result;
+            thumbnailUrlInput.value = dataUrl;
+            if (snippetThumbnailPreviewUrl) {
+              URL.revokeObjectURL(snippetThumbnailPreviewUrl);
+              snippetThumbnailPreviewUrl = null;
+            }
+            previewEl.innerHTML = '';
+            const img = document.createElement('img');
+            img.alt = 'Náhled (vložený)';
+            img.src = dataUrl;
+            previewEl.appendChild(img);
+            updateStatus('Náhled vložen lokálně ✓ (přihlas se pro upload)', '#047857');
+            console.debug('[PasteHandler] Image pasted (local), data URL length:', (dataUrl||'').length);
+            const zone = document.getElementById('snippet-paste-drop-zone');
+            if (zone){
+              zone.classList.add('active');
+              setTimeout(()=> zone.classList.remove('active'), 1200);
+            }
+          };
+          reader.onerror = () => updateStatus('Chyba při čtení vloženého obrázku.', '#dc2626');
+          reader.readAsDataURL(file);
+        }
+      });
+
+      // Drag & Drop support for paste/drop zone
+      const pasteZone = document.getElementById('snippet-paste-drop-zone');
+      if (pasteZone){
+        ['dragenter','dragover'].forEach(evt => pasteZone.addEventListener(evt, (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          pasteZone.classList.add('active');
+        }));
+        ['dragleave','dragend','drop'].forEach(evt => pasteZone.addEventListener(evt, (e)=>{
+          if (evt !== 'drop'){ pasteZone.classList.remove('active'); }
+        }));
+        pasteZone.addEventListener('drop',(e)=>{
+          e.preventDefault();
+          pasteZone.classList.remove('active');
+          const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+          if (file && file.type.startsWith('image/')){
+            handleThumbnailFile(file); // využijeme stávající upload + preview logiku
+          }
+        });
+        pasteZone.addEventListener('click', () => {
+          const titleInput = document.getElementById('snippet-title');
+          if (titleInput) titleInput.focus();
+        });
+      }
+
+      attachSnippetRealtimeListener();
+      renderSnippetLibrary();
+    }
+    // =================================================================================
+    // --- 1. KONFIGURACE A GLOBÁLNÍ STAV ---
+    // =================================================================================
+    let activeBox = null;
+    let currentUser = null;
+    let isEditingText = false;
+    let isFirebaseReady = false;
+    let uploadQueue = [];
+    let currentBoxDetails = null;
+    let unsubscribeListener = null; 
+    let dragSource = null;
+    let lastDragOverEl = null; // pro čištění .dragover
+    let lastDragSwapPositions = null; // uchování posledních swapovaných pozic pro integritu
+    // Cache aktuálního stavu gridu pro diff rendering
+    let gridDataCache = {}; // { 'r-c': { ..boxData } }
+    let googleAuthProviderInstance = null;
+    // (Removed duplicate immediate resets that nulled freshly declared state.)
+  function renderAuthTopbar(user){
+    const statusEl = document.getElementById('p73-topbar-status');
+    if (!statusEl) return;
+    
+    // Helper function for HTML escaping
+    function escapeHtml(text) {
+      if (typeof text !== 'string') return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    if (user){
+      const name = user.displayName || user.email || 'Přihlášený uživatel';
+      const email = user.email || '';
+      const safeName = escapeHtml(name);
+      const safeEmail = escapeHtml(email);
+      statusEl.innerHTML = `
+        <div class="auth-user-chip">
+          <span class="auth-user-name">${safeName}</span>
+          ${safeEmail ? `<span class="auth-user-email">${safeEmail}</span>` : ''}
+        </div>
+        <button id="auth-signout-btn" class="auth-signout-btn" type="button">Odhlásit se</button>
+      `;
+      const btn = document.getElementById('auth-signout-btn');
+      if (btn){
+        const { auth, signOut } = window.firebase;
+        btn.addEventListener('click', () => {
+          btn.disabled = true;
+          btn.textContent = 'Odhlášení...';
+          signOut(auth).catch(err => {
+            console.error('❌ Sign-out failed:', err);
+            showBanner('Odhlášení se nezdařilo.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Odhlásit se';
+          });
+        }, { once: true });
+      }
+    } else {
+      statusEl.innerHTML = '<span>Přihlaste se Google účtem</span>';
+    }
+  }
+  // Debug přepínač pro logování diff operací
+  const DEBUG_DIFF = false;
+  let _rtUnsub = null; // realtime subscription reference (pauza během drag)
+  let assetsLoading = false;
+  let assetsLoadedOnce = false;
+  let assetsSummaryCache = null;
+  let galleryLoading = false;
+  let galleryLoadedOnce = false;
+  let galleryCache = null;
+  let galleryFilterPrefix = 'all';
+  let gallerySortOrder = 'desc';
+  // Guarded global root label for gallery filtering (moved from inside updateGalleryFilterOptions)
+  if (!('GALLERY_ROOT_LABEL' in window)) {
+    window.GALLERY_ROOT_LABEL = '[root]';
+  }
+  const GALLERY_ROOT_LABEL = window.GALLERY_ROOT_LABEL;
+  
+  // --- Debug instrumentation (can be removed after issue fixed) ---
+  window.__P73_DEBUG = window.__P73_DEBUG || { marks: [] };
+  function p73Mark(label, extra){
+    try {
+      const entry = { t: Date.now(), label, extra };
+      window.__P73_DEBUG.marks.push(entry);
+      if (window.location.hash.includes('debugLog')) console.log('[P73]', label, extra||'');
+    } catch(e) { /* swallow */ }
+  }
+  p73Mark('script:start');
+
+    // Initialize workspace based on URL parameter (elektrocz view -> elektrocz workspace)
+    function getWorkspaceFromUrl() {
+      try {
+        const u = new URL(location.href);
+        const view = (u.searchParams.get('view') || 'grid').trim().toLowerCase();
+        // Map view to workspace ID
+        const viewToWorkspace = {
+          'elektrocz': 'elektrocz',
+          'pokus': 'pokus',
+          'plan': 'workspace1',
+          'assets': 'workspace1',
+          'gallery': 'workspace1',
+          'grid': 'workspace1'
+        };
+        return viewToWorkspace[view] || 'workspace1';
+      } catch {
+        return 'workspace1';
+      }
+    }
+
+    let currentWorkspace = getWorkspaceFromUrl(); // Initialize from URL instead of hardcoded
+    let sessionId = null;
+    let gridDocRef = null;
+    let userWorkspacesDocRef = null;
+
+    let workspaceConfigs = {};
+    // --- Auto-hide konfigurace pro plovoucí lištu nástrojů (nav-icons) ---
+    const NAV_ICONS_AUTOHIDE_MS = 4000; // čas neaktivity (ms), po kterém se lišta skryje
+    let navIconsHideTimer = null;
+
+  // --- Archivace (soft-delete) konfigurace ---
+  const ARCHIVE_COLLECTION = 'project73_archives';
+  const ARCHIVE_RETENTION_DAYS = 3; // Počet dní pro obnovu (změněno z 7)
+
+    function cancelNavIconsAutohide(){
+      if (navIconsHideTimer){
+        clearTimeout(navIconsHideTimer);
+        navIconsHideTimer = null;
+      }
+    }
+
+    function startNavIconsAutohide(){
+      cancelNavIconsAutohide();
+      const el = document.getElementById('nav-icons');
+      if (!el || !el.classList.contains('active')) return;
+      navIconsHideTimer = setTimeout(() => {
+        el.classList.remove('active');
+        navIconsHideTimer = null;
+      }, NAV_ICONS_AUTOHIDE_MS);
+    }
+    // Pomocná funkce: zjištění zda box má nějaký obsah (obrázek, text, barvu, odkaz)
+    function boxHasContent(box){
+      if(!box) return false;
+      const hasBgImage = box.style.backgroundImage && box.style.backgroundImage !== 'none';
+      const hasSpanText = !!box.querySelector('span');
+      const hasLink = !!box.dataset.linkUrl;
+      const hasColorBg = box.style.background && box.style.background !== '' && !box.style.background.includes('rgba(0, 0, 0, 0)');
+      return hasBgImage || hasSpanText || hasLink || hasColorBg;
+    }
+
+    // =================================================================================
+    // --- 2. DATOVÉ OPERACE (FIREBASE & STORAGE) ---
+    // =================================================================================
+    function getDefaultWorkspaces() {
+      return {
+        workspace1: { collection: 'project73-sessions', name: "Plocha 1" },
+        workspace2: { collection: 'project73-workspace2', name: "Plocha 2" },
+        workspace3: { collection: 'project73-workspace3', name: "Plocha 3" },
+        workspace4: { collection: 'project73-workspace4', name: "Plocha 4" },
+        workspace5: { collection: 'project73-workspace5', name: "Vlastní plocha" },
+        elektrocz: { collection: 'project73-elektrocz', name: "elektrocz.com" },
+        pokus: { collection: 'project73-pokus', name: "pokus" }
+      };
+    }
+
+    function normalizeWorkspaceConfigs(rawConfigs = {}) {
+      const defaults = getDefaultWorkspaces();
+      const normalized = {};
+
+      const addEntry = (id, source) => {
+        const base = defaults[id] || {};
+        const src = source && typeof source === 'object' ? source : {};
+        const collection = src.collection || base.collection;
+        if (!collection) return;
+        normalized[id] = {
+          name: src.name || base.name || id,
+          collection,
+          sessionId: null,
+          gridDocRef: null
+        };
+      };
+
+      for (const [id, defaultCfg] of Object.entries(defaults)) {
+        addEntry(id, rawConfigs[id] || defaultCfg);
+      }
+
+      for (const [id, sourceCfg] of Object.entries(rawConfigs)) {
+        if (!normalized[id]) {
+          addEntry(id, sourceCfg);
+        }
+      }
+
+      return normalized;
+    }
+
+    function prepareWorkspacePayload(configs = {}) {
+      const payload = {};
+      for (const [id, cfg] of Object.entries(configs)) {
+        if (!cfg || typeof cfg !== 'object') continue;
+        const entry = {};
+        for (const [key, value] of Object.entries(cfg)) {
+          if (key === 'sessionId' || key === 'gridDocRef') continue;
+          if (value === undefined) continue;
+          const valType = typeof value;
+          if (valType === 'string' || valType === 'number' || valType === 'boolean' || value === null) {
+            entry[key] = value;
+          }
+        }
+        if (!entry.collection) continue;
+        if (!entry.name) entry.name = id;
+        payload[id] = entry;
+      }
+      return payload;
+    }
+
+    function workspaceConfigNeedsMigration(rawConfigs = {}) {
+      for (const cfg of Object.values(rawConfigs || {})) {
+        if (!cfg || typeof cfg !== 'object') return true;
+        if (!cfg.collection || typeof cfg.collection !== 'string') return true;
+        if (Object.prototype.hasOwnProperty.call(cfg, 'gridDocRef')) return true;
+        if (Object.prototype.hasOwnProperty.call(cfg, 'sessionId')) return true;
+      }
+      return false;
+    }
+
+    async function loadUserWorkspaceConfig(user) {
+      const { db, doc, getDoc, setDoc, updateDoc } = window.firebase;
+      userWorkspacesDocRef = doc(db, 'project73_users', user.uid);
+      try {
+        const snap = await getDoc(userWorkspacesDocRef);
+        if (snap.exists()) {
+          const raw = snap.data()?.workspaces || {};
+          workspaceConfigs = normalizeWorkspaceConfigs(raw);
+          if (workspaceConfigNeedsMigration(raw)) {
+            await updateDoc(userWorkspacesDocRef, { workspaces: prepareWorkspacePayload(workspaceConfigs) });
+          }
+        } else {
+          workspaceConfigs = normalizeWorkspaceConfigs(getDefaultWorkspaces());
+          await setDoc(userWorkspacesDocRef, { workspaces: prepareWorkspacePayload(workspaceConfigs) });
+        }
+      } catch (error) {
+        console.error('❌ loadUserWorkspaceConfig error', error);
+        workspaceConfigs = normalizeWorkspaceConfigs(getDefaultWorkspaces());
+        try {
+          await setDoc(userWorkspacesDocRef, { workspaces: prepareWorkspacePayload(workspaceConfigs) });
+        } catch (_) {}
+      }
+
+      renderWorkspacePanels();
+      Promise.allSettled(Object.keys(workspaceConfigs).map((id) => ensureWorkspaceCollectionExists(id))).catch(() => {});
+    }
+
+    // Zajistí že kolekce pro workspace existuje tím, že vytvoří placeholder dokument pokud je kolekce prázdná
+    async function ensureWorkspaceCollectionExists(workspaceId) {
+      try {
+        const cfg = workspaceConfigs[workspaceId];
+        if(!cfg || !cfg.collection) return;
+        const { db, collection, query, limit, getDocs, doc, setDoc } = window.firebase;
+        const q = query(collection(db, cfg.collection), limit(1));
+        const snap = await getDocs(q);
+        if (snap.empty) {
+          const placeholderRef = doc(collection(db, cfg.collection));
+            await setDoc(placeholderRef, {
+              _init: true,
+              createdAt: Date.now(),
+              info: 'Placeholder dokument automaticky vytvořen pro inicializaci kolekce.'
+            });
+            console.log(`📁 Kolekce ${cfg.collection} inicializována placeholder dokumentem.`);
+        }
+      } catch (e) {
+        console.warn('Nepodařilo se inicializovat kolekci pro workspace', workspaceId, e);
+      }
+    }
+
+    function getBrowserFingerprint() {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.textBaseline = 'top';
+      ctx.font = '14px Arial';
+      ctx.fillText('Browser fingerprint', 2, 2);
+      
+      const components = [
+        navigator.userAgent || '', navigator.language || '',
+        screen.width + 'x' + screen.height, screen.colorDepth || '',
+        new Date().getTimezoneOffset(), canvas.toDataURL(),
+        navigator.platform || '', navigator.cookieEnabled,
+        typeof window.localStorage !== 'undefined', typeof window.sessionStorage !== 'undefined'
+      ];
+      
+      const fingerprint = btoa(components.join('|')).replace(/[+=\/]/g, '').substring(0, 16);
+      return fingerprint;
+    }
+
+    async function findSessionByFingerprint(fingerprint, collectionName) {
+      const { db, collection, query, where, limit, getDocs } = window.firebase;
+      try {
+        const q = query(collection(db, collectionName), where('browserFingerprint', '==', fingerprint), limit(5));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) return null;
+
+        const sessions = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        let bestSession = null;
+        let maxData = -1;
+
+        for (const session of sessions) {
+          const dataCount = session.data.gridData ? Object.keys(session.data.gridData).length : 0;
+          if (dataCount > maxData) {
+            maxData = dataCount;
+            bestSession = session;
+          }
+        }
+        return bestSession;
+      } catch (error) {
+        console.error(`❌ Error finding session by fingerprint in ${collectionName}:`, error);
+        return null;
+      }
+    }
+
+    async function findMostRecentSession(collectionName) {
+      const { db, collection, query, limit, getDocs } = window.firebase;
+      try {
+        const colRef = collection(db, collectionName);
+        const snap = await getDocs(query(colRef, limit(25)));
+        if (snap.empty) return null;
+        let best = null;
+        let bestScore = -1;
+        snap.forEach((docSnap) => {
+          const data = docSnap.data() || {};
+          const gridData = data.gridData || {};
+          const count = Object.keys(gridData).length;
+          const lastModified = data.lastModified?.toMillis ? data.lastModified.toMillis() : 0;
+          const score = count * 1e9 + lastModified;
+          if (score > bestScore) {
+            bestScore = score;
+            best = { id: docSnap.id, data };
+          }
+        });
+        return best;
+      } catch (error) {
+        console.error(`❌ Error finding most recent session in ${collectionName}:`, error);
+        return null;
+      }
+    }
+
+    async function createNewSession(workspaceId) {
+        const config = workspaceConfigs[workspaceId];
+        const { db, doc, setDoc, serverTimestamp } = window.firebase;
+        const fingerprint = getBrowserFingerprint();
+        const userId = currentUser.uid;
+        
+        const newSessionId = `${workspaceId}_${Date.now()}_${userId.slice(0, 8)}`;
+        config.sessionId = newSessionId;
+        config.gridDocRef = doc(db, config.collection, config.sessionId);
+
+        const sessionData = {
+            userId, sessionId: newSessionId, workspaceId, browserFingerprint: fingerprint,
+            gridData: {},
+            stats: { totalBoxes: 105, filledBoxes: 0, emptyBoxes: 105, isActive: true },
+            metadata: { version: "2.0", project: "Project_73", workspace: workspaceId, gridSize: "15x7" },
+            created: serverTimestamp(),
+            lastModified: serverTimestamp(),
+            lastAccessed: serverTimestamp()
+        };
+
+        await setDoc(config.gridDocRef, sessionData);
+        console.log(`✅ Created new session for ${workspaceId}:`, newSessionId);
+        return { sessionId: newSessionId, gridDocRef: config.gridDocRef };
+    }
+
+    async function updateBoxDataInFirestore(position, dataToSave) {
+        if (!gridDocRef) return;
+        const { updateDoc, getDoc, serverTimestamp, doc: fbDoc } = window.firebase;
+
+        if (dataToSave === null) {
+            const docSnap = await getDoc(gridDocRef);
+            if (docSnap.exists()) {
+                const updatedGridData = { ...docSnap.data().gridData };
+                delete updatedGridData[position];
+                await updateDoc(gridDocRef, {
+                    gridData: updatedGridData,
+                    'lastModified': serverTimestamp()
+                });
+            }
+            return;
+        }
+
+        const docSnap = await getDoc(gridDocRef);
+        if (!docSnap.exists()) return;
+
+        const gridData = docSnap.data().gridData || {};
+        const existingData = gridData[position] || {};
+        const mergedData = { ...existingData, ...dataToSave, updatedAt: serverTimestamp() };
+        
+        await updateDoc(gridDocRef, {
+            [`gridData.${position}`]: mergedData,
+            'lastModified': serverTimestamp()
+        });
+    }
+
+    async function swapBoxDataInFirestore(pos1, pos2) {
+        if (!gridDocRef) return false;
+        const { getDoc, updateDoc, serverTimestamp } = window.firebase;
+        const docSnap = await getDoc(gridDocRef);
+        if (!docSnap.exists()) return false;
+        
+        const gridData = docSnap.data().gridData || {};
+        const data1 = gridData[pos1] ? { ...gridData[pos1] } : null;
+        const data2 = gridData[pos2] ? { ...gridData[pos2] } : null;
+
+        const updates = {};
+        updates[`gridData.${pos1}`] = data2;
+        updates[`gridData.${pos2}`] = data1;
+        if(updates[`gridData.${pos1}`]) updates[`gridData.${pos1}`].updatedAt = serverTimestamp();
+        if(updates[`gridData.${pos2}`]) updates[`gridData.${pos2}`].updatedAt = serverTimestamp();
+        updates.lastModified = serverTimestamp();
+
+        await updateDoc(gridDocRef, updates);
+        console.log(`✅ Swapped data in Firestore: ${pos1} ↔ ${pos2}`);
+        return true;
+    }
+
+  async function archiveAndDeleteBox(position){
+    if(!gridDocRef) return;
+    const { getDoc, addDoc, collection, serverTimestamp } = window.firebase;
+    try {
+      const snap = await getDoc(gridDocRef);
+      if(!snap.exists()) return;
+      const gridData = snap.data().gridData || {};
+      const boxData = gridData[position];
+      // Pokud není co archivovat, jen smažeme (bude řešit updateBoxDataInFirestore)
+      if(!boxData){
+        await updateBoxDataInFirestore(position, null);
+        return;
+      }
+      const retentionMs = ARCHIVE_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+      try {
+        await addDoc(collection(window.firebase.db, ARCHIVE_COLLECTION), {
+          userId: currentUser?.uid || null,
+          workspaceId: currentWorkspace,
+          sessionId,
+          position,
+          deletedAt: serverTimestamp(),
+          expiresAt: new Date(Date.now() + retentionMs), // Pro Firestore TTL (nutno povolit)
+          data: boxData,
+          version: '2.0'
+        });
+      } catch(archiveErr){
+        console.error('❌ Archivace selhala (proběhne jen přímé smazání):', archiveErr);
+      }
+      await updateBoxDataInFirestore(position, null);
+      console.log(`🗑️ Box ${position} archivován a odstraněn.`);
+    } catch(e){
+      console.error('❌ archiveAndDeleteBox error:', e);
+    }
+  }
+
+  // DUPLICATE BLOCK REMOVED ABOVE (archive list, deferred tasks, calendar, formatBytes duplicate)
+
+  async function fetchStorageTopLevelSummary(){
+    const { storage, ref, listAll, getMetadata, getDownloadURL } = window.firebase;
+    const rootRef = ref(storage);
+    const rootList = await listAll(rootRef);
+
+    const folders = await Promise.all(rootList.prefixes.map(async (prefix) => {
+      let childList;
+      try {
+        childList = await listAll(prefix);
+      } catch (err) {
+        console.warn('⚠️ listAll failed for', prefix.fullPath, err);
+        childList = { prefixes: [], items: [] };
+      }
+      const sampleItems = await Promise.all(childList.items.slice(0, 6).map(async (itemRef) => {
+        let size = null;
+        let contentType = null;
+        let previewUrl = null;
+        try {
+          const metadata = await getMetadata(itemRef);
+          size = metadata?.size ?? null;
+          contentType = metadata?.contentType ?? null;
+          if (contentType && contentType.startsWith('image/')) {
+            try {
+              previewUrl = await getDownloadURL(itemRef);
+            } catch (previewErr) {
+              console.warn('⚠️ getDownloadURL failed for', itemRef.fullPath, previewErr);
+            }
+          }
+        } catch (metaErr) {
+          console.warn('⚠️ getMetadata failed for', itemRef.fullPath, metaErr);
+        }
+        return {
+          name: itemRef.name,
+          path: itemRef.fullPath,
+          size,
+          contentType,
+          previewUrl
+        };
+      }));
+      let approxSize = 0;
+      await Promise.all(childList.items.slice(0, 25).map(async (itemRef) => {
+        try {
+          const metadata = await getMetadata(itemRef);
+          approxSize += metadata?.size || 0;
+        } catch (metaErr) {
+          console.warn('⚠️ getMetadata failed for', itemRef.fullPath, metaErr);
+        }
+      }));
+      return {
+        name: prefix.name,
+        path: prefix.fullPath,
+        folderCount: childList.prefixes.length,
+        fileCount: childList.items.length,
+        sampleItems,
+        approxSize
+      };
+    }));
+
+    const files = await Promise.all(rootList.items.map(async (itemRef) => {
+      let size = null;
+      let contentType = null;
+      try {
+        const metadata = await getMetadata(itemRef);
+        size = metadata?.size ?? null;
+        contentType = metadata?.contentType ?? null;
+      } catch (err) {
+        console.warn('⚠️ getMetadata failed for', itemRef.fullPath, err);
+      }
+      return {
+        name: itemRef.name,
+        path: itemRef.fullPath,
+        size,
+        contentType
+      };
+    }));
+
+    return { folders, files };
+  }
+
+  function renderAssetsOverview(summary){
+    const contentEl = document.getElementById('assets-view-content');
+    const emptyEl = document.getElementById('assets-view-empty');
+    if (!contentEl || !emptyEl) return;
+
+    if (!summary || (!summary.folders.length && !summary.files.length)) {
+      contentEl.innerHTML = '';
+      emptyEl.textContent = 'V kořenovém adresáři Firebase Storage nejsou žádná data.';
+      return;
+    }
+
+    emptyEl.textContent = '';
+    contentEl.innerHTML = '';
+
+    summary.folders.forEach(folder => {
+      const card = document.createElement('div');
+      card.className = 'assets-view-card';
+      card.dataset.assetPath = folder.path;
+      card.dataset.assetType = 'folder';
+      card.innerHTML = `
+        <h4>📁 ${folder.name}</h4>
+        <dl>
+          <dt>Cesta</dt><dd>${folder.path}</dd>
+          <dt>Složky</dt><dd>${folder.folderCount}</dd>
+          <dt>Soubory</dt><dd>${folder.fileCount}</dd>
+          <dt>Velikost (≈)</dt><dd>${folder.approxSize ? formatBytes(folder.approxSize) : '—'}</dd>
+        </dl>
+        <div class='assets-view-preview'></div>
+      `;
+      contentEl.appendChild(card);
+      const previewEl = card.querySelector('.assets-view-preview');
+      if (previewEl && folder.sampleItems.length){
+        folder.sampleItems.forEach(sample => {
+          const item = document.createElement('div');
+          item.className = 'assets-preview-item';
+          const nameEl = document.createElement('div');
+          nameEl.className = 'assets-preview-name';
+          nameEl.textContent = sample.name;
+          const sizeEl = document.createElement('div');
+          sizeEl.textContent = sample.size ? formatBytes(sample.size) : '';
+          if (sample.previewUrl){
+            const thumb = document.createElement('img');
+            thumb.className = 'assets-preview-thumb';
+            thumb.alt = sample.name;
+            thumb.loading = 'lazy';
+            thumb.src = sample.previewUrl;
+            item.appendChild(thumb);
+          }
+          item.appendChild(nameEl);
+          if (sizeEl.textContent) item.appendChild(sizeEl);
+          previewEl.appendChild(item);
+        });
+      }
+    });
+
+    summary.files.forEach(file => {
+      const card = document.createElement('div');
+      card.className = 'assets-view-card';
+      card.dataset.assetPath = file.path;
+      card.dataset.assetType = 'file';
+      card.innerHTML = `
+        <h4>📄 ${file.name}</h4>
+        <dl>
+          <dt>Cesta</dt><dd>${file.path}</dd>
+          <dt>Typ</dt><dd>${file.contentType || '—'}</dd>
+          <dt>Velikost</dt><dd>${file.size ? formatBytes(file.size) : '—'}</dd>
+        </dl>
+      `;
+      contentEl.appendChild(card);
+    });
+  }
+
+  async function loadAssetsOverview(force = false){
+    const contentEl = document.getElementById('assets-view-content');
+    const emptyEl = document.getElementById('assets-view-empty');
+    if (!contentEl || !emptyEl) return;
+
+    if (!isFirebaseReady || !currentUser) {
+      contentEl.innerHTML = '';
+      emptyEl.textContent = 'Pro zobrazení obsahu Storage se přihlaste.';
+      return;
+    }
+
+    if (assetsLoading) return;
+    if (assetsLoadedOnce && !force) return;
+
+    assetsLoading = true;
+    emptyEl.textContent = '';
+    contentEl.innerHTML = '<div class="text-sm text-gray-500">Načítám obsah Firebase Storage...</div>';
+
+    try {
+    const summary = await fetchStorageTopLevelSummary();
+    renderAssetsOverview(summary);
+    assetsSummaryCache = summary;
+    assetsLoadedOnce = true;
+  } catch (err) {
+      console.error('❌ loadAssetsOverview error', err);
+      contentEl.innerHTML = '';
+      emptyEl.textContent = 'Obsah se nepodařilo načíst. Zkuste to prosím znovu.';
+    } finally {
+      assetsLoading = false;
+    }
+  }
+
+  // Duplicate gallery block removed (single canonical implementation retained earlier)
+
+  async function restoreArchivedBox(docId, position){
+    try {
+      const { db, doc, getDoc, updateDoc } = window.firebase;
+      const archiveDocRef = doc(db, ARCHIVE_COLLECTION, docId);
+      const snap = await getDoc(archiveDocRef);
+      if(!snap.exists()) return;
+      const archived = snap.data();
+      const data = archived.data || {};
+      await updateBoxDataInFirestore(position, data);
+      await updateDoc(archiveDocRef, { restored: true, restoredAt: new Date() });
+      showBanner(`Obnoveno ${position}.`, 'info');
+    } catch(e){
+      console.error('❌ restoreArchivedBox error', e);
+      showBanner('Chyba při obnově.', 'error');
+    } finally {
+      loadArchiveList();
+    }
+  }
+
+    async function uploadImageToStorage(fileOrBlob, position) {
+        const { storage, ref, uploadBytesResumable, getDownloadURL } = window.firebase;
+        
+        const mime = (fileOrBlob.type && fileOrBlob.type.startsWith('image/')) ? fileOrBlob.type : 'image/png';
+        const imageId = `img_${Date.now()}_${position}`;
+        const fileExtension = mime.split('/')[1] || 'png';
+        const fileName = `${imageId}.${fileExtension}`;
+        const storagePath = `project73-images/${sessionId}/${fileName}`;
+        const storageRef = ref(storage, storagePath);
+        const metadata = { contentType: mime };
+
+        const uploadTask = uploadBytesResumable(storageRef, fileOrBlob, metadata);
+        
+        return new Promise((resolve, reject) => {
+            let progressStarted = false;
+            const timeoutDuration = 15000; 
+
+            const timeoutId = setTimeout(() => {
+                if (!progressStarted) {
+                    uploadTask.cancel(); 
+                    console.error(`❌ Upload pro ${position} vypršel po ${timeoutDuration}ms.`);
+                    reject(new Error('Upload timed out'));
+                }
+            }, timeoutDuration);
+
+            uploadTask.on('state_changed',
+                (snapshot) => {
+                  const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                  if (snapshot.bytesTransferred > 0 && !progressStarted) {
+                      progressStarted = true;
+                      clearTimeout(timeoutId); 
+                  }
+                }, 
+                (error) => { 
+                    clearTimeout(timeoutId); 
+                    console.error(`❌ Upload pro ${position} selhal:`, error.code, error.message);
+                    
+                    switch (error.code) {
+                        case 'storage/unauthorized':
+                            showBanner("Chyba: Nedostatečná oprávnění pro nahrání souboru.", "error");
+                            break;
+                        case 'storage/canceled':
+                            if (!progressStarted) showBanner("Nahrávání trvá příliš dlouho.", "error");
+                            break;
+                        default:
+                            showBanner("Neznámá chyba při nahrávání.", "error");
+                            break;
+                    }
+                    reject(error); 
+                },
+                async () => {
+                    clearTimeout(timeoutId); 
+                    try {
+                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                        console.log(`✅ Soubor pro ${position} nahrán:`, downloadURL);
+                        resolve({ url: downloadURL, id: imageId, fileName });
+                      } catch(e) {
+                        console.error(`❌ Chyba při získávání URL pro ${position}:`, e);
+                        reject(e);
+                      }
+                }
+            );
+        });
+    }
+
+    async function processUploadQueue() {
+        if (!isFirebaseReady || uploadQueue.length === 0) return;
+        
+        while (uploadQueue.length > 0) {
+            const { blob, position, localUrl } = uploadQueue.shift();
+            try {
+                const imageData = await uploadImageToStorage(blob, position);
+
+                const box = document.querySelector(`[data-position="${position}"]`);
+                if (box && box.style.backgroundImage.includes(localUrl)) {
+                    box.style.backgroundImage = `url(${imageData.url})`;
+                }
+
+                await updateBoxDataInFirestore(position, {
+                    hasImage: true, imageUrl: imageData.url, imageId: imageData.id,
+                    hasText: false, text: '', hasColor: false
+                });
+                console.log(`✅ Queued image uploaded and saved for ${position}`);
+            } catch (error) {
+                console.error(`❌ Failed to process upload queue for ${position}:`, error);
+                const box = document.querySelector(`[data-position="${position}"]`);
+                if (box) box.style.outline = '2px solid red';
+            }
+        }
+    }
+
+  // ================================================================
+  // Helper: Komprese / resize obrázku na klientu před uploadem
+  // - Zachová typ JPEG/PNG, ale větší PNG převádí na JPEG kvůli úspoře
+  // - maxWidth / maxHeight: omezení delší hrany
+  // - quality: 0..1 (použito jen pro JPEG/WebP)
+  // Vrací Promise<Blob>
+  async function compressImageIfNeeded(file, { maxWidth = 1600, maxHeight = 1600, quality = 0.85 } = {}) {
+    if (!(file instanceof Blob)) return file;
+    // Pokud je soubor menší než ~600KB, neřešíme (rychlejší)
+    if (file.size < 600 * 1024) return file;
+    const originalType = file.type || 'image/jpeg';
+    const convertToJpeg = !/\b(jpeg|jpg|webp)\b/i.test(originalType);
+
+    const arrayBuf = await file.arrayBuffer();
+    const blobUrl = URL.createObjectURL(new Blob([arrayBuf]));
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = rej;
+      i.src = blobUrl;
+    });
+    URL.revokeObjectURL(blobUrl);
+
+    let { width, height } = img;
+    const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+    if (ratio < 1) { width = Math.round(width * ratio); height = Math.round(height * ratio); }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const mime = convertToJpeg ? 'image/jpeg' : (originalType === 'image/png' && file.size > 2*1024*1024 ? 'image/jpeg' : originalType);
+
+    const blobCompressed = await new Promise(resolve => canvas.toBlob(b => resolve(b || file), mime, quality));
+    // Pokud komprese nepomohla (větší než originál), vrať originál
+    if (blobCompressed.size >= file.size) return file;
+    return blobCompressed;
+  }
+    
+    // =================================================================================
+    // --- 3. MANIPULACE S UI (DOM) ---
+    // =================================================================================
+    function swapBoxElementsInDOM(box1, box2) {
+    const pos1 = box1.dataset.position;
+    const pos2 = box2.dataset.position;
+
+    const content1 = {
+      innerHTML: box1.innerHTML,
+      backgroundImage: box1.style.backgroundImage,
+      background: box1.style.background,
+      linkUrl: box1.dataset.linkUrl,
+      linkText: box1.dataset.linkText
+    };
+    const content2 = {
+      innerHTML: box2.innerHTML,
+      backgroundImage: box2.style.backgroundImage,
+      background: box2.style.background,
+      linkUrl: box2.dataset.linkUrl,
+      linkText: box2.dataset.linkText
+    };
+
+    // Vyčistit původní obsah (neztrácíme referenci na elementy)
+    box1.innerHTML = ''; box1.style.backgroundImage = 'none'; box1.style.background = '';
+    box2.innerHTML = ''; box2.style.backgroundImage = 'none'; box2.style.background = '';
+
+    // Aplikace prohozeného obsahu
+    box1.innerHTML = content2.innerHTML;
+    box1.style.backgroundImage = content2.backgroundImage;
+    box2.dataset.linkUrl = content1.linkUrl || '';
+    box2.dataset.linkText = content1.linkText || '';
+
+    // Optimistická aktualizace cache (aby diff re-render nesmazal lokální swap)
+    const cache1 = gridDataCache[pos1];
+    const cache2 = gridDataCache[pos2];
+    gridDataCache[pos1] = cache2 ? { ...cache2 } : undefined;
+    gridDataCache[pos2] = cache1 ? { ...cache1 } : undefined;
+    if (DEBUG_DIFF) console.log('⚡ Optimistický lokální swap (cache)', pos1, '<->', pos2);
+    }
+
+    // --- RYCHLÉ LOKÁLNÍ SWAP DAT (bez innerHTML kopírování) ---
+    function swapBoxDataLocal(p1, p2, gridData){
+      const a = gridData[p1] ? { ...gridData[p1] } : null;
+      const b = gridData[p2] ? { ...gridData[p2] } : null;
+      gridData[p1] = b; gridData[p2] = a;
+    }
+
+    // Bezpečné naplnění jednoho boxu (subset render používá)
+    function applySingleBoxData(box, data){
+      box.innerHTML = '';
+      box.style.backgroundImage = 'none';
+      box.style.background = '';
+      box.dataset.linkUrl = '';
+      box.dataset.linkText = '';
+      if (!data) return;
+      if (data.hasImage && data.imageUrl){
+        box.style.backgroundImage = `url(${data.imageUrl})`;
+      } else if (data.hasColor && data.colorStyle){
+        box.style.background = data.colorStyle;
+      } else if (data.hasText && data.text){
+        const span = document.createElement('span');
+        span.textContent = data.text; // XSS safe
+        span.style.cssText = 'color:#333; font-weight:500; font-size:14px;';
+        box.appendChild(span);
+        if(!data.colorStyle) box.style.background = 'linear-gradient(135deg,#e3f2fd 0%,#bbdefb 100%)';
+      }
+      if (data.linkUrl){
+        const badge = document.createElement('div');
+        badge.className = 'box-link-badge';
+        badge.textContent = data.linkText || data.linkUrl;
+        badge.dataset.linkUrl = data.linkUrl;
+        box.dataset.linkUrl = data.linkUrl;
+        box.dataset.linkText = data.linkText || data.linkUrl;
+        box.appendChild(badge);
+      }
+    }
+
+    function renderBoxesSubset(subset){ // subset: { 'r-c': data, ... }
+      Object.entries(subset).forEach(([pos, data]) => {
+        const box = document.querySelector(`.box[data-position="${pos}"]`);
+        if (!box) return;
+        applySingleBoxData(box, data);
+        if (data) gridDataCache[pos] = { ...data }; else delete gridDataCache[pos];
+      });
+    }
+
+    // Post-drag integritní kontrola – ověří, že lokální cache odpovídá serveru (řeší závodní stavy)
+    function schedulePostDragIntegrityCheck(positions){
+      if(!gridDocRef) return;
+      // Krátké zpoždění – dá prostor Firestore listeneru dodat případný pending snapshot
+      setTimeout(async () => {
+        try {
+          const snap = await window.firebase.getDoc(gridDocRef);
+          if(!snap.exists()) return;
+          const serverGrid = snap.data().gridData || {};
+          const diffs = {};
+          const keys = new Set([...Object.keys(serverGrid), ...Object.keys(gridDataCache)]);
+          for (const k of keys){
+            const a = gridDataCache[k];
+            const b = serverGrid[k];
+            if (!isObjectEqual(a, b)) diffs[k] = b;
+          }
+          if (Object.keys(diffs).length > 0){
+            if (DEBUG_DIFF) console.log("🔄 Integrační oprava po drag&drop", diffs);
+            renderBoxesSubset(diffs);
+          }
+        } catch (e) {
+          console.warn("Integrační kontrola selhala:", e);
+        }
+      }, 800);
+    }
+
+    function isObjectEqual(a, b){
+      if (a === b) return true;
+      if (!a || !b) return false;
+      const keysA = Object.keys(a), keysB = Object.keys(b);
+      if (keysA.length !== keysB.length) return false;
+      return keysA.every(k => a[k] === b[k]);
+    }
+
+    // Deploy panel handlers with Debug mode
+    document.addEventListener("DOMContentLoaded", () => {
+      const deployBtn = document.getElementById("quick-deploy-btn");
+      const panel = document.getElementById("deploy-panel");
+      const closeBtn = document.getElementById("deploy-close");
+      const copyBtn = document.getElementById("deploy-copy");
+      const minBtn = document.getElementById("deploy-min");
+      const deployModeBtn = document.getElementById("deploy-mode");
+      const debugModeBtn = document.getElementById("debug-mode");
+      const deployCommands = document.getElementById("deploy-commands");
+      const debugCommands = document.getElementById("debug-commands");
+
+      let isDebugMode = false;
+
+      function toggleMode() {
+        isDebugMode = !isDebugMode;
+        if (isDebugMode) {
+          deployModeBtn.style.background = "#374151";
+          deployModeBtn.style.color = "#9ca3baf";
+          debugModeBtn.style.background = "#1e293b";
+          debugModeBtn.style.color = "#cbd5e1";
+          deployCommands.style.display = "none";
+          debugCommands.style.display = "block";
+        } else {
+          deployModeBtn.style.background = "#1e293b";
+          deployModeBtn.style.color = "#cbd5e1";
+          debugModeBtn.style.background = "#374151";
+          debugModeBtn.style.color = "#9ca3baf";
+          deployCommands.style.display = "block";
+          debugCommands.style.display = "none";
+        }
+      }
+
+      deployBtn?.addEventListener("click", (e) => {
+        e.preventDefault();
+        panel.style.display = panel.style.display === "block" ? "none" : "block";
+      });
+
+      closeBtn?.addEventListener("click", () => {
+        panel.style.display = "none";
+      });
+
+      deployModeBtn?.addEventListener("click", () => {
+        if (isDebugMode) toggleMode();
+      });
+
+      debugModeBtn?.addEventListener("click", () => {
+        if (!isDebugMode) toggleMode();
+      });
+
+      copyBtn?.addEventListener("click", async () => {
+        const activeCommands = isDebugMode ? debugCommands : deployCommands;
+        try {
+          await navigator.clipboard.writeText(activeCommands.textContent);
+          copyBtn.textContent = "Copied!";
+          setTimeout(() => { copyBtn.textContent = "Copy"; }, 1000);
+        } catch (e) {
+          console.warn("Copy failed:", e);
+        }
+      });
+
+      minBtn?.addEventListener("click", () => {
+        const isMinimized = panel.style.height === "60px";
+        if (isMinimized) {
+          panel.style.height = "auto";
+          deployCommands.style.display = isDebugMode ? "none" : "block";
+          debugCommands.style.display = isDebugMode ? "block" : "none";
+          minBtn.textContent = "Min";
+        } else {
+          panel.style.height = "60px";
+          deployCommands.style.display = "none";
+          debugCommands.style.display = "none";
+          minBtn.textContent = "Max";
+        }
+      });
+    });
+
+  </script>
+<!-- ==== DEBUG PANEL: Firebase Self-Check (drop-in) ==== -->
+<style>
+  #dbg-toggle { position: fixed; right: 16px; bottom: 16px; z-index: 9999; border: none; border-radius: 999px; padding: 10px 14px; background: #111827; color: #fff; font-weight: 600; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
+  #dbg-wrap { position: fixed; right: 16px; bottom: 66px; width: 320px; max-height: 70vh; background: #ffffff; color: #111827; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.2); overflow: hidden; z-index: 9999; display: none; }
+  #dbg-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f3f4f6; border-bottom: 1px solid #e5e7eb; font-weight: 700; }
+  #dbg-body { padding: 10px 12px; font-size: 13px; }
+  #dbg-body .row { margin-bottom: 10px; }
+  #dbg-body button { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 6px 10px; font-weight: 600; cursor: pointer; margin-right: 6px; }
+  #dbg-body button.secondary { background: #6b7280; }
+  #dbg-body code, #dbg-log { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  #dbg-log { white-space: pre-wrap; background: #0b1020; color: #e2e8f0; padding: 8px; border-radius: 8px; height: 160px; overflow: auto; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .ok { background: #dcfce7; color: #166534; }
+  .bad { background: #fee2e2; color: #991b1b; }
+  .dbg-mt6 { margin-top:6px; }
+  .dbg-close-btn { background:#ef4444; }
+</style>
+
+<button id="dbg-toggle" aria-controls="dbg-wrap" aria-expanded="false">Debug</button>
+<div id="dbg-wrap" role="dialog" aria-label="Firebase Debug Panel">
+  <div id="dbg-head">
+    <span>Firebase Self-Check</span>
+  <button id="dbg-close" class="secondary dbg-close-btn">×</button>
+  </div>
+  <div id="dbg-body">
+    <div class="row">
+      <div><strong>Auth:</strong> <span id="dbg-auth">…</span></div>
+  <div class="dbg-mt6">
+        <button id="dbg-login">Přihlásit Google</button>
+        <button id="dbg-logout" class="secondary">Odhlásit</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <strong>Firestore:</strong>
+  <div class="dbg-mt6">
+        <button id="dbg-fs-write">Zapsat test</button>
+        <button id="dbg-fs-list" class="secondary">Načíst posledních 5</button>
+      </div>
+  <div id="dbg-fs-status" class="dbg-mt6"></div>
+    </div>
+
+    <div class="row">
+      <strong>Storage:</strong>
+  <div class="dbg-mt6">
+        <button id="dbg-st-list">Vypsat kořen bucketu</button>
+      </div>
+  <div id="dbg-st-status" class="dbg-mt6"></div>
+    </div>
+
+    <div class="row">
+      <strong>Log:</strong>
+      <div id="dbg-log" aria-live="polite"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  const f = window.firebase || {};
+  const logEl = document.getElementById('dbg-log');
+  const ui = {
+    wrap:  document.getElementById('dbg-wrap'),
+    toggle:document.getElementById('dbg-toggle'),
+    close: document.getElementById('dbg-close'),
+    auth:  document.getElementById('dbg-auth'),
+    fsStat:document.getElementById('dbg-fs-status'),
+    stStat:document.getElementById('dbg-st-status'),
+    btnLogin: document.getElementById('dbg-login'),
+    btnLogout:document.getElementById('dbg-logout'),
+    fsWrite:  document.getElementById('dbg-fs-write'),
+    fsList:   document.getElementById('dbg-fs-list'),
+    stList:   document.getElementById('dbg-st-list'),
+  };
+  const log = (...args) => {
+    const line = args.map(x => { try { return typeof x === 'string' ? x : JSON.stringify(x, null, 2); } catch { return String(x); } }).join(' ');
+    const ts = new Date().toLocaleTimeString();
+    logEl.textContent += `[${ts}] ${line}\n`;
+    logEl.scrollTop = logEl.scrollHeight;
+    console.debug('[DBG]', ...args);
+  };
+  ui.toggle.addEventListener('click', () => { const show = ui.wrap.style.display !== 'block'; ui.wrap.style.display = show ? 'block' : 'none'; ui.toggle.setAttribute('aria-expanded', String(show)); });
+  ui.close.addEventListener('click', () => { ui.wrap.style.display = 'none'; ui.toggle.setAttribute('aria-expanded', 'false'); });
+  function renderAuth(user) {
+    if (user) {
+      ui.auth.innerHTML = `<span class="pill ok">SIGNED IN</span> <code>${user.uid}</code>${user.email ? ' · ' + user.email : ''}`;
+      ui.btnLogin.disabled = true; ui.btnLogout.disabled = false;
+    } else { ui.auth.innerHTML = `<span class="pill bad">SIGNED OUT</span>`; ui.btnLogin.disabled = false; ui.btnLogout.disabled = true; }
+  }
+  if (f.onAuthStateChanged && f.auth) {
+    f.onAuthStateChanged(f.auth, (u) => { renderAuth(u); log('Auth state:', u ? { uid: u.uid, email: u.email || null } : 'null'); });
+  } else { ui.auth.innerHTML = `<span class="pill bad">AUTH SDK MISSING</span>`; log('Auth SDK not found on window.firebase'); }
+  ui.btnLogin.addEventListener('click', async () => { try { const provider = new f.GoogleAuthProvider(); await f.signInWithPopup(f.auth, provider); log('Signed in via Google'); } catch (e) { log('Login error:', e.code || e.message || e); alert('Login error: ' + (e.message || e)); } });
+  ui.btnLogout.addEventListener('click', async () => { try { await f.signOut(f.auth); log('Signed out'); } catch (e) { log('Logout error:', e.message || e); } });
+  ui.fsWrite.addEventListener('click', async () => { if (!f.db) { ui.fsStat.textContent = 'Firestore SDK není k dispozici.'; return; } try { const ref = await f.addDoc(f.collection(f.db, 'debug_selfcheck'), { ok: true, at: f.serverTimestamp() }); ui.fsStat.innerHTML = `<span class="pill ok">WRITE OK</span> <code>${ref.id}</code>`; log('Firestore write OK:', ref.id); } catch (e) { ui.fsStat.innerHTML = `<span class="pill bad">WRITE ERR</span>`; log('Firestore write error:', e.message || e); } });
+  ui.fsList.addEventListener('click', async () => { if (!f.db) { ui.fsStat.textContent = 'Firestore SDK není k dispozici.'; return; } try { const q = f.query(f.collection(f.db, 'debug_selfcheck'), f.orderBy('at','desc'), f.limit(5)); const snap = await f.getDocs(q); const items = []; snap.forEach(d => items.push({ id: d.id, ...d.data() })); ui.fsStat.innerHTML = items.length ? `<span class=\"pill ok\">LIST OK</span> ${items.length} položek` : `<span class=\"pill bad\">EMPTY</span>`; log('Firestore list:', items); } catch (e) { ui.fsStat.innerHTML = `<span class=\"pill bad\">LIST ERR</span>`; log('Firestore list error:', e.message || e); } });
+  ui.stList.addEventListener('click', async () => { if (!f.storage) { ui.stStat.textContent = 'Storage SDK není k dispozici.'; return; } try { const rootRef = f.ref(f.storage, '/'); const res = await f.listAll(rootRef); const summary = { prefixes: res.prefixes.map(p => p.fullPath), items: res.items.map(i => i.fullPath) }; ui.stStat.innerHTML = `<span class=\"pill ok\">LIST OK</span> složky: ${summary.prefixes.length}, soubory: ${summary.items.length}`; log('Storage list:', summary); } catch (e) { ui.stStat.innerHTML = `<span class=\"pill bad\">LIST ERR</span>`; log('Storage list error:', e.message || e); } });
+  log('window.firebase keys:', Object.keys(f));
+</script>
+<!-- ==== /DEBUG PANEL ==== -->
+</body>
+</html>

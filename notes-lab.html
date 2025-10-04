@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project_73 – Notes Lab</title>
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <link rel="stylesheet" href="notes-lab.css" />
+  <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css" integrity="sha384-cPa8kzsYWhqpAfWOLWYIw3V0BhPi/m3lrd8tBTPxr2NrYCHRVZ7xy1cEoRGOM/03" crossorigin="anonymous" />
+</head>
+<body class="view-notes">
+  <div id="notes-app">
+    <div class="notes-app" role="application" aria-label="Poznámky Project_73 – Lab">
+      <aside class="notes-pane notes-pane--folders" aria-label="Složky poznámek">
+        <div class="notes-pane__header">
+          <div class="notes-pane__brand">
+            <span class="notes-pane__brand-title">iCloud</span>
+            <button id="notes-folder-add" type="button" class="notes-link notes-link--new">+ Nová složka</button>
+          </div>
+        </div>
+        <nav id="notes-folder-tree" class="notes-folder-tree" role="tree" aria-label="Strom složek"></nav>
+      </aside>
+
+      <section class="notes-pane notes-pane--list" aria-label="Seznam poznámek">
+        <header class="notes-list-header">
+          <div class="notes-list-header__titles">
+            <h1 id="notes-current-folder-name" class="notes-list-title">Poznámky</h1>
+            <p class="notes-list-subtitle"><span id="notes-count">0</span> poznámek</p>
+          </div>
+          <button id="notes-new" type="button" class="notes-icon-btn notes-icon-btn--primary" title="Nová poznámka" aria-label="Nová poznámka">
+            <span aria-hidden="true">＋</span>
+          </button>
+        </header>
+        <div id="notes-status" class="notes-status" role="status" aria-live="polite"></div>
+        <div id="notes-locked" class="notes-empty notes-empty--muted" hidden>
+          <strong>Přihlášení vyžadováno.</strong>
+          <p>Poznámky jsou navázané na tvůj účet, přihlas se prosím přes Google.</p>
+        </div>
+        <div id="notes-empty" class="notes-empty" hidden>
+          <strong>Zatím žádné poznámky.</strong>
+          <p>Zapiš si první nápad a vrať se k němu později.</p>
+        </div>
+        <ul id="notes-list" class="notes-list" role="listbox" aria-label="Poznámky"></ul>
+      </section>
+
+      <section class="notes-pane notes-pane--editor" aria-label="Editor poznámky">
+        <div id="notes-editor" class="notes-editor" hidden>
+          <header class="notes-editor-header">
+            <div id="notes-detail-meta" class="notes-editor-meta"></div>
+            <div class="notes-editor-actions">
+              <button id="notes-delete" type="button" class="notes-icon-btn notes-icon-btn--ghost" hidden title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
+            </div>
+          </header>
+          <div id="notes-editor-surface" class="notes-editor-surface" aria-live="polite"></div>
+          <form id="notes-form" class="notes-editor-form" novalidate>
+            <div class="notes-editor-actions-bar">
+              <button type="submit" id="notes-save" class="notes-btn-primary">Uložit poznámku</button>
+              <button type="button" id="notes-cancel" class="notes-btn-secondary" hidden>Zrušit</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="../shared/firebase.js"></script>
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js" integrity="sha384-QUJ+ckWz1M+a7w0UfG1sEn4pPrbQwSxGm/1TIPyioqXBrwuT9l4f9gdHWLDLbVWI" crossorigin="anonymous"></script>
+  <script type="module" src="notes-lab.js"></script>
+</body>
+</html>

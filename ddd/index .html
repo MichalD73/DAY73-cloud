@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project_73 SPA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
+</head>
+<body class="bg-gray-50 text-gray-900 font-[Inter],sans-serif min-h-screen">
+  <header id="global-topbar" class="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex h-12 items-center gap-6 text-sm">
+      <a data-nav-link="grid" href="?view=grid" class="font-medium text-gray-600 hover:text-gray-900 transition">Grid</a>
+      <a data-nav-link="links" href="?view=links" class="font-medium text-gray-600 hover:text-gray-900 transition">Odkazy</a>
+      <div class="ml-auto flex items-center gap-3 text-[11px] text-gray-400 select-none" id="topbar-status"></div>
+    </nav>
+  </header>
+  <div id="app" class="min-h-screen"></div>
+
+  <script type="module">
+    import { auth, onAuthStateChanged, signInAnonymously } from './shared/firebase.js';
+    import { startRouter } from './router.js';
+
+    function updateActiveNav(view){
+      document.querySelectorAll('#global-topbar [data-nav-link]').forEach(el=>{
+        if(el.dataset.navLink === view){
+          el.classList.add('text-indigo-600','border-b-2','border-indigo-600');
+        } else {
+          el.classList.remove('text-indigo-600','border-b-2','border-indigo-600');
+        }
+      });
+    }
+
+    // Wrap navigate to also update nav state
+    import { navigate as _navigate } from './router.js';
+    async function navigateWithNav(view){
+      await _navigate(view);
+      updateActiveNav(view);
+    }
+    // Patch history navigation listeners after router start
+    import { startRouter as _startRouter } from './router.js';
+
+    // Monkey patch startRouter to inject nav update after load
+    const params = new URLSearchParams(window.location.search);
+    const initialView = params.get('view') || 'grid';
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        _startRouter();
+        // Initial highlight (slight delay to ensure DOM links exist)
+        setTimeout(()=>updateActiveNav(initialView), 0);
+        // Global delegated click – already handled in router, so just listen to popstate to sync highlight
+        window.addEventListener('popstate', () => {
+          const v = new URLSearchParams(window.location.search).get('view') || 'grid';
+          updateActiveNav(v);
+        });
+        // Also observe pushes (patch history.pushState)
+        const origPush = history.pushState;
+        history.pushState = function(state, title, url){
+          origPush.apply(history, arguments);
+          const v = (state && state.view) || new URL(url, window.location.origin).searchParams.get('view') || 'grid';
+          updateActiveNav(v);
+        };
+      } else {
+        signInAnonymously(auth).catch((err) => console.error('Anonymous sign-in failed:', err));
+      }
+    });
+  </script>
+</body>
+</html>

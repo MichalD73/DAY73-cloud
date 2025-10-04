@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>School Cloud</title>
+  <link rel="stylesheet" href="app.css" />
+  <script type="module" src="../../shared/firebase.js"></script>
+</head>
+<body class="school-cloud-app">
+  <div id="school-cloud">
+    <aside class="panel panel--students" aria-label="Výběr dítěte">
+      <header class="panel-header">
+        <div class="panel-header__top">
+          <span class="panel-eyebrow">Naše třídy</span>
+          <button id="auth-button" type="button" class="auth-btn" data-state="unsigned">Přihlásit</button>
+        </div>
+        <h1 class="panel-title">School Cloud</h1>
+        <p id="auth-hint" class="panel-sub">Nepřihlášen – zobrazená data jsou pouze demo.</p>
+        <button id="calendar-trigger" type="button" class="calendar-card" data-action="preview-calendar">
+          <img src="https://firebasestorage.googleapis.com/v0/b/central-asset-storage.firebasestorage.app/o/attachments%2Famy%2Famy-reading-journal%2F1759331983935-photo-2025-10-01-09-07-02.jpg?alt=media&token=e8b57163-833a-4a84-afe9-b8128e356005" alt="2025-2026 Academic Calendar" loading="lazy" />
+          <span>Centner Academy · Academic Calendar</span>
+        </button>
+        <button id="seed-demo" type="button" class="link-btn link-btn--secondary" hidden>Naplnit data z demoverze</button>
+      </header>
+      <div id="student-list" class="student-list" role="tablist" aria-orientation="vertical"></div>
+      <footer class="panel-footer">
+        <p class="panel-note">Primárně sledujeme Amy (1. třída), Annie má vlastní miniprojekty.</p>
+      </footer>
+    </aside>
+
+    <main class="panel panel--overview" aria-label="Přehled projektů">
+      <section class="overview-section overview-section--preview" aria-live="polite">
+        <div class="section-heading">
+          <h2>Náhled přílohy</h2>
+        </div>
+        <div id="attachment-preview" class="attachment-preview"></div>
+      </section>
+
+      <section class="overview-section overview-section--current" aria-label="Detail projektu">
+        <div id="project-overview-detail" class="project-overview-detail" aria-live="polite"></div>
+      </section>
+
+      <section class="student-summary" id="student-summary" aria-live="polite"></section>
+
+      <section class="overview-section">
+        <div class="section-heading">
+          <h2>Nadcházející termíny</h2>
+          <button id="toggle-show-completed" type="button" class="link-btn" aria-pressed="false">Zobrazit splněné</button>
+        </div>
+        <div id="upcoming-list" class="upcoming-list" role="list"></div>
+      </section>
+
+      <section class="overview-section overview-section--projects">
+        <div class="section-heading">
+          <h2>Aktivní projekty</h2>
+          <span id="project-count" class="section-meta"></span>
+        </div>
+        <div id="project-grid" class="project-grid" role="list"></div>
+      </section>
+    </main>
+
+    <aside class="panel panel--detail" aria-label="Detail projektu">
+      <div id="project-detail" class="project-detail" aria-live="polite"></div>
+    </aside>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

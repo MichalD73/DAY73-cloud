@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Landing Lab Template</title>
+  <link rel="stylesheet" href="app.css" />
+  <script type="module" src="../../shared/firebase.js"></script>
+  <script type="module" src="app.js" defer></script>
+</head>
+<body>
+  <header class="lab-header">
+    <div>
+      <h1>Landing Lab Template</h1>
+      <p>Základní vzor pro nové sandboxové experimenty napojené na Firebase.</p>
+    </div>
+    <div class="lab-auth">
+      <span id="lab-user-label">Nepřihlášen</span>
+      <button id="lab-signin">Přihlásit přes Google</button>
+      <button id="lab-signout" class="secondary" hidden>Odhlásit</button>
+    </div>
+  </header>
+
+  <div id="lab-status" class="lab-status" role="status" aria-live="polite"></div>
+
+  <main class="lab-main">
+    <section class="lab-canvas">
+      <h2>Experimentální plátno</h2>
+      <p class="lab-hint">Sem můžeš přidat vlastní komponenty, layouty a skripty. Aktuálně je zde jen placeholder.</p>
+      <div class="lab-placeholder" id="lab-placeholder">
+        <h3>Hero komponenta (demo)</h3>
+        <p>Klidně ji smaž a vlož vlastní HTML/CSS/JS.</p>
+        <button id="lab-cta-example">Klikni pro zápis testovacího eventu</button>
+      </div>
+    </section>
+
+    <aside class="lab-sidebar">
+      <div class="lab-card">
+        <h3>Testovací dokumenty</h3>
+        <form id="lab-doc-form">
+          <input id="lab-doc-title" type="text" placeholder="Titulek" required />
+          <textarea id="lab-doc-note" rows="3" placeholder="Poznámka"></textarea>
+          <button type="submit">Uložit do sandboxu</button>
+        </form>
+        <div class="lab-doc-list" id="lab-doc-list"></div>
+        <button id="lab-reset" class="danger" hidden>Smazat všechny testovací záznamy</button>
+      </div>
+
+      <div class="lab-card">
+        <h3>Info &amp; tipy</h3>
+        <ul>
+          <li>Všechna data se ukládají pod <code>sandboxProjects/landing-lab</code>.</li>
+          <li>Tlačítkem „Smazat všechny testovací záznamy“ vyčistíš sandbox.</li>
+          <li>Pro přenos do produkce jen zkopíruj případné komponenty.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="lab-footer">
+    <small>Sandbox běží v rámci projektu <strong>central-asset-storage</strong>. Přihlášené akce se logují do kolekce <code>events</code> pod namespace <code>landing-lab</code>.</small>
+  </footer>
+</body>
+</html>

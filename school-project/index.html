@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>School Project</title>
+  <link rel="stylesheet" href="notes-lab.css" />
+</head>
+<body class="school-project-app">
+  <div id="school-project">
+    <aside class="panel panel--students" aria-label="Výběr dítěte">
+      <header class="panel-header">
+        <span class="panel-eyebrow">Naše třídy</span>
+        <h1 class="panel-title">School Project</h1>
+      </header>
+      <div id="student-list" class="student-list" role="tablist" aria-orientation="vertical"></div>
+      <footer class="panel-footer">
+        <p class="panel-note">Primárně sledujeme Amy (1. třída), Annie má vlastní miniprojekty.</p>
+      </footer>
+    </aside>
+
+    <main class="panel panel--overview" aria-label="Přehled projektů">
+      <section class="student-summary" id="student-summary" aria-live="polite"></section>
+
+      <section class="overview-section">
+        <div class="section-heading">
+          <h2>Nadcházející termíny</h2>
+          <button id="toggle-show-completed" type="button" class="link-btn" aria-pressed="false">Zobrazit splněné</button>
+        </div>
+        <div id="upcoming-list" class="upcoming-list" role="list"></div>
+      </section>
+
+      <section class="overview-section overview-section--projects">
+        <div class="section-heading">
+          <h2>Aktivní projekty</h2>
+          <span id="project-count" class="section-meta"></span>
+        </div>
+        <div id="project-grid" class="project-grid" role="list"></div>
+      </section>
+    </main>
+
+    <aside class="panel panel--detail" aria-label="Detail projektu">
+      <div id="project-detail" class="project-detail" aria-live="polite"></div>
+    </aside>
+  </div>
+
+  <script type="module" src="notes-lab.js"></script>
+</body>
+</html>
