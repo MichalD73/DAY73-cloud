@@ -99,6 +99,7 @@
                data-id="${card.id}"
                ondragstart="DashboardView.handleDragStart(event)"
                ondragend="DashboardView.handleDragEnd(event)">
+            <div class="kanban-card-title">${card.title}</div>
             ${card.imageUrl ? `
               <img src="${card.imageUrl}"
                    class="kanban-card-image"
@@ -110,7 +111,6 @@
                 📷 Ctrl+V pro vložení obrázku
               </div>
             `}
-            <div class="kanban-card-title">${card.title}</div>
             <div class="kanban-card-desc">${card.description || ''}</div>
           </div>
         `).join('');
