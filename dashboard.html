@@ -562,18 +562,22 @@ async function loadCards() {
     return;
   }
 
-  const { db, collection, query, where, onSnapshot } = window.firebase;
+  const { db, collection, onSnapshot } = window.firebase;
   const cardsRef = collection(db, 'kanban-cards');
 
-  // Query based on archive mode
-  const cardsQuery = showArchived
-    ? query(cardsRef, where('archived', '==', true))
-    : query(cardsRef, where('archived', '!=', true));
-
-  onSnapshot(cardsQuery, (snapshot) => {
+  // Load all cards and filter client-side
+  onSnapshot(cardsRef, (snapshot) => {
     cards = [];
     snapshot.forEach(doc => {
-      cards.push({ id: doc.id, ...doc.data() });
+      const data = doc.data();
+      const isArchived = data.archived === true;
+
+      // Filter based on archive mode
+      if (showArchived && isArchived) {
+        cards.push({ id: doc.id, ...data });
+      } else if (!showArchived && !isArchived) {
+        cards.push({ id: doc.id, ...data });
+      }
     });
     renderKanban();
   });
