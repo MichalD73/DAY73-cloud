@@ -282,6 +282,16 @@ body.view-dashboard #dashboard-view {
   line-height: 1.4;
 }
 
+.kanban-card.dragging {
+  opacity: 0.5;
+  cursor: move;
+}
+
+.kanban-card.drag-over {
+  border-top: 3px solid #0079bf;
+  margin-top: -3px;
+}
+
 .kanban-add-card {
   background: transparent;
   border: none;
