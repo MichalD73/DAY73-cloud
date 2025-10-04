@@ -141,10 +141,10 @@
           <textarea id="newCardDesc"
                     placeholder="Popis (volitelné)..."></textarea>
           <div class="card-form-buttons">
-            <button class="btn btn-primary" onclick="DashboardView.addCard('${status}')">
+            <button class="btn btn-primary" onclick="addCard('${status}')">
               Přidat kartu
             </button>
-            <button class="btn btn-secondary" onclick="DashboardView.cancelCardForm()">
+            <button class="btn btn-secondary" onclick="cancelCardForm()">
               Zrušit
             </button>
           </div>
@@ -292,4 +292,6 @@
 
   // Global functions for onclick handlers
   window.showAddCardForm = (status) => window.DashboardView.showAddCardForm(status);
+  window.addCard = (status) => window.DashboardView.addCard(status);
+  window.cancelCardForm = () => window.DashboardView.cancelCardForm();
 })();
