@@ -655,10 +655,10 @@ window.addCard = async function(status) {
       createdAt: serverTimestamp()
     });
 
-    cancelCardForm();
+    window.cancelCardForm();
   } catch (error) {
-    console.error('Error adding card:', error);
-    alert('Chyba při vytváření karty');
+    console.error('[Dashboard] Error adding card:', error);
+    alert('Chyba při vytváření karty: ' + error.message);
   }
 };
 
