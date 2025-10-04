@@ -509,4 +509,5 @@
   window.addCard = (status) => window.DashboardView.addCard(status);
   window.cancelCardForm = () => window.DashboardView.cancelCardForm();
   window.closeCardDetail = () => window.DashboardView.closeCardDetail();
+  window.toggleArchive = () => window.DashboardView.toggleArchive();
 })();
