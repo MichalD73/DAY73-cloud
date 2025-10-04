@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Project_73 - Grid Development [v2.0]</title>
+<!-- Revision marker (public copy) -->
+<meta name="p73-revision" content="public-rev-fix-2b-{{TIMESTAMP}}" />
+<link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+<link rel="apple-touch-icon" href="../favicon.svg" />
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Firebase SDK bootstrap -->
+<script type="module" src="../shared/firebase.js"></script>
+<script>
+ console.log('[P73] public/DAY73/grid-app-test.html loaded (public-rev-fix-2b)');
+</script>
+
+<link rel="stylesheet" href="/DAY73/grid-app.css" />
+</head>
+<body>
+<div id="auth-gate" class="auth-gate hidden" role="dialog" aria-modal="true" aria-labelledby="auth-gate-title">
+ <div class="auth-card">
+   <h2 id="auth-gate-title">Přihlášení požadováno</h2>
+   <p>Přihlaste se Google účtem, abyste mohli pracovat s projektem Project_73.</p>
+   <button id="auth-signin-btn" class="auth-btn" type="button">
+     <span>Pokračovat přes Google</span>
+   </button>
+   <div id="auth-error" class="auth-error" role="alert"></div>
+ </div>
+</div>
+<!-- Top navigation bar (inline for this standalone file) -->
+<header id="p73-topbar" class="p73-topbar">
+ <div class="p73-topbar-brand">
+   <span class="p73-topbar-brand-dot">●</span>Project_73
+ </div>
+ <nav class="p73-topbar-nav">
+   <a href="?view=grid" data-toplink="grid" class="p73-topbar-link">Grid</a>
+  <a href="?view=goal-canvas" data-toplink="goal-canvas" class="p73-topbar-link">Goal Canvas</a>
+   <a href="?view=elektrocz" data-toplink="elektrocz" class="p73-topbar-link">elektrocz.com</a>
+   <a href="?view=calendar#calendar" data-toplink="calendar" class="p73-topbar-link">Kalendář</a>
+   <a href="?view=assets" data-toplink="assets" class="p73-topbar-link">Assets</a>
+   <a href="?view=gallery" data-toplink="gallery" class="p73-topbar-link">Galerie</a>
+<a href="?view=snippets" data-toplink="snippets" class="p73-topbar-link">Kódy</a>
+   <a href="?view=super-modul" data-toplink="super-modul" class="p73-topbar-link">Super Modul</a>
+   <a href="#" id="quick-deploy-btn" class="p73-topbar-link" title="Zobrazit rychlé deploy příkazy">Deploy</a>
+ </nav>
+ <div id="p73-topbar-status" class="p73-topbar-status"></div>
+</header>
+<!-- Fallback script: pokud by některé odkazy v topbaru chyběly (např. cache staré verze), dynamicky je doplníme -->
+<script>
+ (function ensureTopbarLinks(){
+   try {
+     const nav = document.querySelector('.p73-topbar-nav');
+     if(!nav) return;
+     const deployLink = nav.querySelector('#quick-deploy-btn');
+     const anchorOrder = [
+       { view:'grid', label:'Grid' },
+      { view:'goal-canvas', label:'Goal Canvas' },
+       { view:'elektrocz', label:'elektrocz.com' },
+       { view:'calendar', label:'Kalendář', href:'?view=calendar#calendar' },
+       { view:'assets', label:'Assets' },
+       { view:'gallery', label:'Galerie' },
+       { view:'snippets', label:'Kódy' },
+       { view:'super-modul', label:'Super Modul' }
+     ];
+     // Vloží chybějící odkazy PŘED Deploy tlačítko zachováním původního pořadí
+     anchorOrder.forEach(item => {
+       if(!nav.querySelector(`[data-toplink="${item.view}"]`)){
+         const a = document.createElement('a');
+         a.className = 'p73-topbar-link';
+         a.dataset.toplink = item.view;
+         a.href = item.href || `?view=${item.view}`;
+         a.textContent = item.label;
+         nav.insertBefore(a, deployLink);
+       }
+     });
+   } catch(err){
+     console.warn('ensureTopbarLinks fallback selhal:', err);
+   }
+ })();
+</script>
+<div id="workspace-toolbar" class="workspace-toolbar" hidden>
+  <div class="workspace-toolbar-left">
+    <span id="workspace-toolbar-module" class="workspace-toolbar-module">Workspace</span>
+    <span>—</span>
+    <span id="workspace-toolbar-name" class="workspace-toolbar-name">New</span>
+    <span id="workspace-toolbar-badge" class="workspace-toolbar-badge" hidden>Výchozí</span>
+    <button id="workspace-setups-toggle" type="button" class="workspace-toolbar-link" hidden aria-expanded="false">
+      <span class="workspace-setups-toggle-label">Uložené plochy</span>
+      <span class="workspace-toolbar-caret">▾</span>
+    </button>
+  </div>
+  <div class="workspace-toolbar-actions">
+    <div class="workspace-toolbar-zoom">
+      <button type="button" id="workspace-zoom-out" aria-label="Oddálit">−</button>
+      <span id="workspace-zoom-label" class="workspace-toolbar-zoom-label">100%</span>
+      <button type="button" id="workspace-zoom-in" aria-label="Přiblížit">＋</button>
+    </div>
+    <div id="workspace-toolbar-setups" class="workspace-toolbar-setups" hidden>
+      <label for="workspace-setup-select" class="sr-only">Sestavy</label>
+      <select id="workspace-setup-select" class="workspace-toolbar-select"></select>
+      <button id="workspace-setup-load" type="button" class="workspace-toolbar-button workspace-toolbar-button--ghost">Načíst</button>
+      <button id="workspace-setup-default" type="button" class="workspace-toolbar-button workspace-toolbar-button--ghost" title="Nastavit jako výchozí">Výchozí</button>
+      <button id="workspace-setup-delete" type="button" class="workspace-toolbar-button workspace-toolbar-button--ghost" title="Smazat vybranou sestavu">Smazat</button>
+    </div>
+    <button id="workspace-toolbar-save" type="button" class="workspace-toolbar-button">Uložit</button>
+    <button id="workspace-toolbar-new" type="button" class="workspace-toolbar-button">New</button>
+  </div>
+</div>
+<div id="workspace-setups-drawer" class="workspace-setups-drawer" hidden>
+  <div class="workspace-setups-header">
+    <div class="workspace-setups-title">Uložené plochy</div>
+    <button id="workspace-setups-close" type="button" class="workspace-setups-close" aria-label="Zavřít">×</button>
+  </div>
+  <div id="workspace-setups-empty" class="workspace-setups-empty" hidden></div>
+  <div id="workspace-setups-list" class="workspace-setups-list"></div>
+</div>
+<div id="p73-status-banner"></div>
+
+<button id="sidebar-toggle" aria-label="Otevřít/zavřít menu">
+ <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+</button>
+
+<div id="sidebar">
+ <div class="sidebar-header">Project_73 Menu</div>
+
+ <div class="sidebar-section">
+   <h3 class="font-medium mb-2">Pracovní plochy</h3>
+   <p class="text-xs text-gray-500 mb-2">Klikni na plochu a pak na box v mřížce</p>
+   <div class="workspace-panels">
+     <!-- Panely budou dynamicky generovány JavaScriptem -->
+   </div>
+   <button id="add-workspace-btn" class="mt-4 w-full px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition">Přidat nový projekt</button>
+ </div>
+ <div class="sidebar-section">
+   <h3 class="font-medium mb-2">Nastavení mřížky</h3>
+   <div class="flex flex-col gap-2">
+<button id="clear-workspace-btn" class="px-3 py-2 bg-blue-100 hover:bg-blue-200 rounded text-sm">Vyčistit všechny boxy</button>
+     <button class="px-3 py-2 bg-blue-100 hover:bg-blue-200 rounded text-sm">Export dat</button>
+   </div>
+ </div>
+ <div class="sidebar-section">
+   <h3 class="font-medium mb-2">Informace o projektu</h3>
+   <div class="text-sm">
+     <p>Session ID: <span id="session-id-display">načítání...</span></p>
+     <p>Stav: <span id="firebase-status">načítání...</span></p>
+     <p>Čas načtení: <span id="load-time-display">- ms</span></p>
+   </div>
+ </div>
+ <div class="sidebar-section">
+   <h3 class="font-medium mb-2">Statistiky</h3>
+   <div class="text-sm"><p>Celkem boxů: <span id="total-boxes">105</span></p><p>Vyplněno: <span id="filled-boxes">0</span></p></div>
+ </div>
+ <div class="sidebar-section" id="archive-section">
+   <h3 class="font-medium mb-2 flex items-center justify-between">
+     <span>Smazané (archiv)</span>
+     <button id="archive-refresh" class="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded">↻</button>
+   </h3>
+   <div class="text-xs text-gray-500 mb-2">Poslední smazané položky (3 dny)</div>
+   <div id="archive-list" class="flex flex-col gap-2 max-h-48 overflow-auto text-xs"></div>
+ </div>
+ <div class="sidebar-section" id="deferred-section">
+   <h3 class="font-medium mb-2 flex items-center justify-between">
+     <span>Odložené úkoly</span>
+     <button id="deferred-add" class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">+</button>
+   </h3>
+   <div class="text-xs text-gray-500 mb-2">Rychlé poznámky k pozdějšímu řešení</div>
+   <div class="flex gap-2 mb-2">
+     <input id="deferred-title" type="text" placeholder="Nový úkol..." class="flex-1 px-2 py-1 border rounded text-sm" />
+     <button id="deferred-save" class="text-xs px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">Uložit</button>
+   </div>
+   <div id="deferred-list" class="flex flex-col gap-2 max-h-56 overflow-auto text-xs"></div>
+ </div>
+<div class="sidebar-section" id="calendar-section" data-anchor="calendar">
+   <h3 class="font-medium mb-2 flex items-center justify-between">
+     <span>Kalendář</span>
+     <a href="#calendar" class="text-[10px] px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded" title="Srolovat dolů na kalendář" id="calendar-jump">⇣</a>
+   </h3>
+   <div class="text-xs text-gray-500 mb-2">Jednoduché plánování pro aktuální projekt</div>
+   <div class="flex flex-col gap-2 mb-2">
+<input id="calendar-title" type="text" placeholder="Název události" class="px-2 py-1 border rounded text-sm" />
+<label for="calendar-date" class="sr-only">Datum události</label>
+<input id="calendar-date" type="date" aria-label="Datum události" class="px-2 py-1 border rounded text-sm" />
+     <button id="calendar-add" class="text-xs px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600">Přidat událost</button>
+   </div>
+   <div id="calendar-list" class="flex flex-col gap-2 max-h-56 overflow-auto text-xs"></div>
+ </div>
+</div>
+
+<div id="detail-panel">
+ <div class="detail-panel-header">
+   <h2>Detail boxu <span id="box-position"></span></h2>
+   <button class="detail-panel-close" aria-label="Zavřít detail"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+ </div>
+<div class="detail-section"><div class="detail-preview" id="box-preview"></div></div>
+<div class="detail-section">
+  <label for="box-title-input" class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nadpis boxu</label>
+  <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+    <input id="box-title-input" type="text" class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="Přidej nadpis (volitelné)" />
+    <button id="box-title-save" type="button" class="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-600">Uložit nadpis</button>
+  </div>
+  <p id="box-title-feedback" class="mt-1 text-xs text-gray-400" hidden></p>
+</div>
+<div class="detail-section">
+  <h3 class="font-medium mb-2">Barva pozadí</h3>
+  <div id="detail-color-grid" class="detail-color-grid"></div>
+  <button id="detail-color-clear" type="button" class="detail-color-clear">Žádná barva</button>
+</div>
+<div class="detail-section">
+  <h3 class="font-medium mb-2">Popis</h3>
+  <textarea id="box-description" class="w-full p-3 border border-gray-300 rounded-lg" rows="4" placeholder="Zadejte popis tohoto boxu..."></textarea>
+  <button id="save-description" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">Uložit popis</button>
+</div>
+<div class="detail-section">
+  <h3 class="font-medium mb-2">Odkazy</h3>
+  <div id="box-links-list" class="flex flex-col gap-2 rounded-lg border border-gray-200 bg-slate-50/60 p-3"></div>
+  <div class="mt-3 grid gap-2 sm:grid-cols-[1fr,1.4fr,auto]">
+    <input id="box-link-label" type="text" placeholder="Text odkazu" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200" />
+    <input id="box-link-url" type="url" placeholder="https://example.com" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200" />
+    <button id="box-link-save" type="button" class="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-600">+ Přidat</button>
+  </div>
+  <div class="mt-3 flex flex-col gap-2">
+    <textarea id="box-link-bulk" rows="4" class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="Myčky nádobí | https://example.com
+Další odkaz: https://example.com/page"></textarea>
+    <div class="flex flex-wrap gap-2">
+      <button id="box-link-bulk-save" type="button" class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100">Vložit více odkazů</button>
+      <span class="text-xs text-gray-400">Každý řádek: „název | URL“ nebo „název: URL“.</span>
+    </div>
+  </div>
+  <p id="box-link-feedback" class="mt-2 text-xs" hidden></p>
+</div>
+<div class="detail-section">
+  <h3 class="font-medium mb-2">Vlastnosti</h3>
+  <div class="grid grid-cols-2 gap-2">
+    <div class="p-3 bg-gray-100 rounded-lg"><div class="text-xs text-gray-500">Typ</div><div id="box-type">Standardní</div></div>
+     <div class="p-3 bg-gray-100 rounded-lg"><div class="text-xs text-gray-500">Vytvořeno</div><div id="box-created">-</div></div>
+     <div class="p-3 bg-gray-100 rounded-lg"><div class="text-xs text-gray-500">Poslední úprava</div><div id="box-updated">-</div></div>
+     <div class="p-3 bg-gray-100 rounded-lg"><div class="text-xs text-gray-500">Autor</div><div id="box-author">-</div></div>
+   </div>
+ </div>
+</div>
+
+<div class="nav-icons" id="nav-icons">
+ <div class="nav-icon" data-action="rename" title="Přejmenovat text">
+     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+ </div>
+ <div class="nav-icon" data-action="link" title="Přidat odkaz">
+     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+ </div>
+ <div class="nav-icon" data-action="color" title="Změnit barvu">
+     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0L12 2.69z"></path></svg>
+ </div>
+ <div class="nav-icon" data-action="delete" title="Smazat obsah (nebo klávesa Del)">
+     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+ </div>
+ <div class="nav-color-panel" id="nav-color-panel" hidden>
+   <div class="nav-color-swatches" id="nav-color-swatches"></div>
+   <label class="nav-color-title" for="nav-color-title-input">
+     <span>Nadpis</span>
+     <input type="text" id="nav-color-title-input" placeholder="Nadpis (volitelné)" />
+   </label>
+   <div class="nav-color-actions">
+     <button type="button" id="nav-color-apply" class="nav-color-btn nav-color-btn-primary">Uložit</button>
+     <button type="button" id="nav-color-clear" class="nav-color-btn">Zrušit barvu</button>
+   </div>
+ </div>
+</div>
+
+<div class="workspace-loading" id="workspace-loading"><div class="workspace-loading-spinner"></div></div>
+
+<!-- Vlastní (rychlý) náhled pro přetahování -->
+<div id="drag-preview">Přesunuji...</div>
+
+<!-- NOVÝ KONTEJNER PRO MŘÍŽKU -->
+<div id="grid-container"></div>
+<div id="calendar-view" class="calendar-view-wrapper">
+ <div class="calendar-view-header">
+   <div class="calendar-view-title">Kalendář událostí</div>
+ </div>
+ <div id="calendar-view-list" class="calendar-view-list"></div>
+</div>
+<div id="assets-view" class="assets-view-wrapper">
+ <div class="assets-view-header">
+   <div class="assets-view-title">Firebase Storage – Assets</div>
+   <button id="assets-refresh" class="assets-view-refresh">Obnovit</button>
+ </div>
+ <div id="assets-view-content" class="assets-view-grid"></div>
+ <div id="assets-view-empty" class="text-sm text-gray-400"></div>
+</div>
+<div id="gallery-view" class="gallery-view-wrapper">
+ <div class="gallery-view-header">
+   <div class="gallery-view-title">Galerie – všechny obrázky</div>
+   <div class="gallery-view-controls">
+     <select id="gallery-filter" class="gallery-view-select">
+       <option value="all">Všechny složky</option>
+     </select>
+     <select id="gallery-sort" class="gallery-view-select">
+       <option value="desc">Největší → Nejmenší</option>
+       <option value="asc">Nejmenší → Největší</option>
+     </select>
+     <button id="gallery-refresh" class="gallery-view-refresh">Obnovit</button>
+   </div>
+ </div>
+ <div id="gallery-view-grid" class="gallery-view-grid"></div>
+ <div id="gallery-view-empty" class="text-sm text-gray-400"></div>
+</div>
+<div id="goal-canvas-view" class="goal-canvas-wrapper">
+ <div class="goal-canvas-toolbar">
+  <h2>🎯 Goal Canvas</h2>
+  <div class="goal-canvas-toolbar-actions">
+    <div class="goal-canvas-zoom">
+      <button id="goal-canvas-zoom-out" type="button" aria-label="Oddálit">−</button>
+      <span id="goal-canvas-zoom-label" class="goal-canvas-zoom-label">100%</span>
+      <button id="goal-canvas-zoom-in" type="button" aria-label="Přiblížit">＋</button>
+    </div>
+    <button id="goal-canvas-add" type="button" class="goal-canvas-add-btn">+
+      <span>Přidat cíl</span>
+    </button>
+  </div>
+ </div>
+ <div class="goal-canvas-board">
+   <div class="goal-canvas-scroll">
+     <div id="goal-canvas-surface" class="goal-canvas-surface"></div>
+   </div>
+   <div id="goal-canvas-empty" class="goal-canvas-empty">
+     <strong>Začni přidáním prvního cíle.</strong>
+     <span>Tady si vizuálně poskládáš strategické záměry, priority i sny, které má Project_73 splnit.</span>
+   </div>
+ </div>
+</div>
+<div id="snippet-library-view" class="snippet-view-wrapper">
+ <div class="snippet-header">
+   <h2>🧠 Knihovna kódů</h2>
+   <p>Ukládejte si často používané části kódu s náhledovým obrázkem a popisem. Všechno se ukládá přímo do Firebase a máte k tomu přístup z jakéhokoli zařízení po přihlášení.</p>
+ </div>
+ <form id="snippet-form" class="snippet-form">
+   <div class="snippet-form-grid">
+     <div class="snippet-form-field">
+       <label for="snippet-title">Název</label>
+       <input id="snippet-title" name="title" type="text" placeholder="Landing page hero, formulář..." required />
+     </div>
+     <div class="snippet-form-field full">
+       <label for="snippet-thumbnail">Náhled (URL obrázku)</label>
+       <input id="snippet-thumbnail" name="thumbnailUrl" type="text" placeholder="https://.../preview.png nebo vlož (Ctrl+V)" />
+     </div>
+     <div class="snippet-form-field full">
+       <label for="snippet-thumbnail-file">Nahrát printscreen</label>
+       <div class="snippet-upload-group">
+         <div id="snippet-upload-preview" class="snippet-upload-preview">Bez náhledu</div>
+         <div id="snippet-paste-drop-zone"><span>Vlož sem printscreen (Ctrl/⌘+V)<br/>nebo přetáhni obrázek</span></div>
+         <div class="snippet-upload-actions">
+           <input id="snippet-thumbnail-file" type="file" accept="image/*" hidden />
+           <div class="flex gap-2">
+             <button type="button" id="snippet-upload-select" class="snippet-button-upload">Vybrat obrázek</button>
+             <button type="button" id="snippet-upload-clear" class="snippet-button-ghost">Odebrat</button>
+           </div>
+           <div class="snippet-upload-status" id="snippet-upload-status">Soubor nevybrán</div>
+           <div class="text-xs text-gray-400">Po nahrání se URL vyplní automaticky.</div>
+         </div>
+       </div>
+     </div>
+     <div class="snippet-form-field full">
+       <label for="snippet-description">Popis</label>
+       <textarea id="snippet-description" name="description" rows="3" placeholder="Krátké poznámky k použití..."></textarea>
+     </div>
+     <div class="snippet-form-field full">
+       <label for="snippet-code">Kód</label>
+       <textarea id="snippet-code" name="code" rows="8" placeholder="Sem vlož kód" required></textarea>
+     </div>
+   </div>
+   <div class="snippet-alert">Tip: Vlož printscreen (Ctrl/⌘+V), přetáhni obrázek nebo vyplň URL – po nahrání se doplní automaticky.</div>
+   <div class="snippet-form-actions">
+     <button type="button" id="snippet-reset" class="snippet-button-secondary">Vymazat formulář</button>
+     <button type="submit" class="snippet-button-primary">Uložit kód</button>
+   </div>
+ </form>
+ <div class="snippet-list-header">
+   <div class="snippet-list-header-top">
+     <h3 class="snippet-list-title">Uložené kódy</h3>
+     <div class="snippet-list-count">Celkem: <span id="snippet-count">0</span></div>
+   </div>
+   <input id="snippet-search" type="search" class="snippet-search" placeholder="Filtrovat podle názvu nebo popisu" />
+ </div>
+<div id="snippet-empty" class="snippet-empty">Žádné kódy zatím nejsou uložené. Přidej první pomocí formuláře výše.</div>
+ <div id="snippet-list" class="snippet-list"></div>
+</div>
+<div id="assets-modal-backdrop" class="assets-modal-backdrop">
+ <div class="assets-modal">
+   <div class="assets-modal-header">
+     <h3 id="assets-modal-title">Assets</h3>
+     <button id="assets-modal-close" class="assets-modal-close" aria-label="Zavřít">×</button>
+   </div>
+   <div class="assets-modal-body">
+     <div id="assets-modal-summary" class="text-sm text-gray-500 mb-4"></div>
+     <div id="assets-modal-grid" class="assets-modal-grid"></div>
+     <div id="assets-modal-empty" class="text-sm text-gray-400"></div>
+   </div>
+ </div>
+</div>
+
+<!-- ✅ Quick Deploy Panel -->
+<div id="deploy-panel" style="position:fixed; bottom:16px; right:16px; width:360px; background:#111827; color:#f1f5f9; font:12px/1.45 'Inter',sans-serif; padding:14px 16px; border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.35); display:none; z-index:3000;">
+ <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px;">
+   <strong style="font-size:13px;">⚡ Quick Deploy</strong>
+   <div style="display:flex; gap:4px;">
+     <button id="deploy-mode" style="background:#1e293b;border:0;color:#cbd5e1;cursor:pointer;font-size:11px;padding:4px 10px;border-radius:8px;">Deploy</button>
+     <button id="debug-mode" style="background:#374151;border:0;color:#9ca3af;cursor:pointer;font-size:11px;padding:4px 10px;border-radius:8px;">Debug</button>
+     <button id="deploy-close" style="background:none;border:0;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1;">×</button>
+   </div>
+ </div>
+ <pre style="margin:0; white-space:pre; overflow:auto; max-height:170px;"><code id="deploy-commands">npm run sync:grid
+npm run build
+firebase deploy --only hosting:onlineday73
+# +functions (pokud změny ve functions/)
+firebase deploy --only hosting:onlineday73,functions
+# Preview (např. PR 123)
+firebase hosting:channel:deploy pr-123 --expires 7d --only hosting:onlineday73
+# Pozn: npm install spouštěj jen při změně závislostí
+</code></pre>
+ <pre id="debug-commands" style="margin:0; white-space:pre; overflow:auto; max-height:170px; display:none;"><code># 🐛 TROUBLESHOOTING: Změny se nezobrazují v browseru
+
+## 1. Cache problém (nejčastější)
+# Hard refresh (vynucený reload):
+Cmd+Shift+R (Mac) nebo Ctrl+Shift+R (PC)
+
+# DevTools disable cache:
+F12 → Network tab → ☑ "Disable cache" → reload
+
+## 2. Dev server cache
+# Restart Vite serveru:
+Ctrl+C
+npm run dev
+
+## 3. Diagnostika v konzoli
+# Zkontroluj element v DOM:
+document.querySelector('[data-toplink="super-modul"]')
+
+# Ověř načtený soubor:
+location.pathname
+fetch(location.href.split('?')[0]).then(r=>r.text()).then(t=>console.log(t.includes('Super Modul')))
+
+## 4. Duplicitní soubory
+# Ujisti se, že upravuješ správný soubor:
+# ✅ DAY73/grid-app-test.html
+# ❌ DAY73/grid-app-test (kopie).html
+
+## 5. URL parametry pro cache-bust:
+?v=1234567890&cache=false
+
+# 💡 TIP: Vždy jako první zkus hard refresh!
+</code></pre>
+ <div style="display:flex; gap:6px; margin-top:10px;">
+   <button id="deploy-copy" style="flex:1; background:#2563eb; border:0; color:#fff; font-weight:600; padding:6px 10px; border-radius:8px; cursor:pointer;">Copy</button>
+   <button id="deploy-min" style="background:#1e293b; border:0; color:#cbd5e1; padding:6px 10px; border-radius:8px; cursor:pointer;">Min</button>
+ </div>
+</div>
+
+<div id="super-modul-view" class="super-modul-view">
+ <div class="super-modul-header">
+   <h2>🧩 Super Modul</h2>
+   <p>Tato scéna je připravená na budoucí agregaci modulů. Zatím je prázdná, takže můžeš začít tvořit od nuly.</p>
+ </div>
+ <section class="bosch-laundry" aria-labelledby="bosch-laundry-title">
+   <div class="bosch-laundry__inner">
+     <div class="bosch-laundry__heading">
+       <h2 id="bosch-laundry-title" class="bosch-laundry__title">Výhody našich spotřebičů na praní prádla</h2>
+     </div>
+     <div class="bosch-laundry__rows">
+       <article class="bosch-laundry__row">
+         <div class="bosch-laundry__media">
+           <picture>
+             <source srcset="https://media3.bosch-home.com/Images/900x/23280869_REU_PCC_Laundry_Room_side_by_side_instalation_with_Series_8_washer_and_dryer.webp 1x, https://media3.bosch-home.com/Images/1200x/23280869_REU_PCC_Laundry_Room_side_by_side_instalation_with_Series_8_washer_and_dryer.webp 2x" type="image/webp" />
+             <source srcset="https://media3.bosch-home.com/Images/900x/23280869_REU_PCC_Laundry_Room_side_by_side_instalation_with_Series_8_washer_and_dryer.jpg 1x, https://media3.bosch-home.com/Images/1200x/23280869_REU_PCC_Laundry_Room_side_by_side_instalation_with_Series_8_washer_and_dryer.jpg 2x" type="image/jpeg" />
+             <img loading="lazy" src="https://media3.bosch-home.com/Images/900x/23280869_REU_PCC_Laundry_Room_side_by_side_instalation_with_Series_8_washer_and_dryer.jpg" alt="Pračka a sušička vedle sebe v moderní koupelně." />
+           </picture>
+         </div>
+         <div class="bosch-laundry__content">
+           <h3 class="bosch-laundry__subtitle">Dokonalá péče o veškeré vaše oblečení</h3>
+           <p>Naše výrobky šetrně a přitom důkladně perou a suší všechny typy oděvů a úrovně znečištění, od velmi znečištěného sportovního oblečení a každodenních košil až po jemné svetry. Výsledkem je dokonale čisté a suché prádlo. Díky řadě praktických a chytrých programů a funkcí je praní prádla maximálně snadné a bezproblémové.</p>
+         </div>
+       </article>
+       <article class="bosch-laundry__row bosch-laundry__row--reverse">
+         <div class="bosch-laundry__media">
+           <picture>
+             <source srcset="https://media3.bosch-home.com/Images/900x/19810383_Bosch_PLC_Washing_Sustainability_1200x676.webp 1x, https://media3.bosch-home.com/Images/1200x/19810383_Bosch_PLC_Washing_Sustainability_1200x676.webp 2x" type="image/webp" />
+             <source srcset="https://media3.bosch-home.com/Images/900x/19810383_Bosch_PLC_Washing_Sustainability_1200x676.jpg 1x, https://media3.bosch-home.com/Images/1200x/19810383_Bosch_PLC_Washing_Sustainability_1200x676.jpg 2x" type="image/jpeg" />
+             <img loading="lazy" src="https://media3.bosch-home.com/Images/900x/19810383_Bosch_PLC_Washing_Sustainability_1200x676.jpg" alt="Kupka složeného barevného oblečení na pračce." />
+           </picture>
+         </div>
+         <div class="bosch-laundry__content">
+           <h3 class="bosch-laundry__subtitle">Efektivní a udržitelná volba</h3>
+           <p>Jak poznáte, že se skutečně snažíme udržet životní prostředí stejně čisté jako vaše prádlo? Naše vlajková loď, sušička s tepelným čerpadlem, překonává normy třídy energetické účinnosti A+++ o 10 % a pračka s ní kompatibilní překonává třídu A o 50 %<sup>1</sup>. Navíc se na pračku Bosch můžete spolehnout po dlouhá léta. Na motor Eco Silence Drive v našich strojích je dokonce poskytována desetiletá záruka na motor, což svědčí o jeho výjimečné kvalitě. Řada různých funkcí pro úsporu vody, čisticích prostředků a energie vám navíc pomůže žít šetrněji.</p>
+           <p class="bosch-laundry__footnote"><sup>1</sup> <span>O 50 % energeticky účinnější (25 kWh/100 cyklů) než limitní hodnota (50 kWh/100 cyklů) energetické třídy A podle delegovaného nařízení EU 2019/2014.</span></p>
+         </div>
+       </article>
+       <article class="bosch-laundry__row">
+         <div class="bosch-laundry__media">
+           <picture>
+             <source srcset="https://media3.bosch-home.com/Images/900x/19810380_Bosch_PLC_Washing_Lineup_1200x676.webp 1x, https://media3.bosch-home.com/Images/1200x/19810380_Bosch_PLC_Washing_Lineup_1200x676.webp 2x" type="image/webp" />
+             <source srcset="https://media3.bosch-home.com/Images/900x/19810380_Bosch_PLC_Washing_Lineup_1200x676.jpg 1x, https://media3.bosch-home.com/Images/1200x/19810380_Bosch_PLC_Washing_Lineup_1200x676.jpg 2x" type="image/jpeg" />
+             <img loading="lazy" src="https://media3.bosch-home.com/Images/900x/19810380_Bosch_PLC_Washing_Lineup_1200x676.jpg" alt="Sestava zobrazující pračku se sušičkou, pračku a sušičku." />
+           </picture>
+         </div>
+         <div class="bosch-laundry__content">
+           <h3 class="bosch-laundry__subtitle">Vyhoví vašim potřebám</h3>
+           <p>Ať už je velikost vaší domácnosti nebo potřeby praní jakákoliv, v naší široké nabídce vysoce kvalitních výrobků najdete to pravé. Kromě široké škály kapacit nabízíme také něco pro všechny rozpočty a osobní preference. Například naše chytré produkty Serie&nbsp;8 jsou ideální pro ty, kteří chtějí velkokapacitní spotřebič s nejnovějšími technologiemi a špičkovými funkcemi. Chcete-li cenově výhodný model v kvalitě Bosch, je Serie&nbsp;2 tou pravou volbou.</p>
+         </div>
+       </article>
+     </div>
+   </div>
+ </section>
+ <div class="super-modul-stage" aria-hidden="true">Přidej sem první komponentu nebo sekci podle potřeby.</div>
+</div>
+
+<script src="/DAY73/grid-app.js"></script>
+</body>
+</html>

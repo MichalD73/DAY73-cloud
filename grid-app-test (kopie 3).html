@@ -1,0 +1,468 @@
+<!DOCTYPE html> 
+ <html lang="cs"> 
+ <head> 
+   <meta charset="UTF-8" /> 
+   <meta name="viewport" content="width=device-width, initial-scale=1.0"/> 
+   <title>Project_73 - Project Management System</title> 
+   <script src="https://cdn.tailwindcss.com"></script> 
+    
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css"> 
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script> 
+
+   <!-- Firebase SDK v10 --> 
+   <script type="module"> 
+     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'; 
+  import { getFirestore, doc, getDoc, updateDoc, onSnapshot, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'; 
+     import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js'; 
+     import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'; 
+
+     const firebaseConfig = { 
+       apiKey: "AIzaSyDdKzUd-QVHEdHMGl3kbuAKk4p6CjgkgzQ", 
+       authDomain: "central-asset-storage.firebaseapp.com", 
+       projectId: "central-asset-storage", 
+       storageBucket: "central-asset-storage.appspot.com", 
+       messagingSenderId: "907874309868", 
+       appId: "1:907874309868:web:5354ee69d6212f3d9937c9" 
+     }; 
+
+     const app = initializeApp(firebaseConfig); 
+     const db = getFirestore(app); 
+     const storage = getStorage(app); 
+     const auth = getAuth(app); 
+
+    window.firebase = {  
+      db, storage, auth,  
+      doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, 
+      ref, uploadBytes, getDownloadURL, 
+      onAuthStateChanged, signInAnonymously 
+    }; 
+      
+     console.log('🚀 Project Management System Initialized'); 
+   </script> 
+    
+   <style> 
+     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'); 
+     body{ font-family: 'Inter', sans-serif; background:#f0f4f8; margin:0; padding:24px; } 
+     #grid-container { display:flex; flex-direction:column; gap:12px; } 
+     .row{ display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; } 
+     .box{ height:180px; background:#e2e8f0; border-radius:12px; position: relative; color: white; box-shadow:0 4px 10px rgba(0,0,0,.1); transition: all .3s ease; background-size: cover; background-position: center; cursor: pointer; overflow: hidden; } 
+     .box:hover { transform: translateY(-5px) scale(1.03); box-shadow: 0 10px 20px rgba(0,0,0,.15); } 
+     .box-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); } 
+     .box-title { font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,0.7); } 
+      
+     .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 2000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; } 
+     .modal-overlay.visible { opacity: 1; pointer-events: all; } 
+     .modal { background: white; border-radius: 16px; width: 90%; box-shadow: 0 20px 40px rgba(0,0,0,0.3); display: flex; flex-direction: column; transform: scale(0.95); transition: transform 0.3s ease; } 
+     .modal-overlay.visible .modal { transform: scale(1); } 
+     .modal-header { padding: 20px 30px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; } 
+     .modal-title { font-size: 1.5rem; font-weight: 700; color: #111827; } 
+     .modal-close-btn { background: #f3f4f6; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; } 
+     .modal-close-btn:hover { background: #e5e7eb; } 
+     .modal-body { flex-grow: 1; display: flex; overflow: hidden; } 
+      
+     #project-modal { max-width: 1200px; height: 90vh; } 
+     .modal-content { flex: 1; padding: 30px; overflow-y: auto; } 
+     .modal-code-container { flex: 1.5; background: #282c34; padding: 30px; overflow-y: auto; color: #abb2bf; font-size: 14px; } 
+     .modal-code-container pre { margin: 0; } 
+     .modal-code-container code { font-family: 'Courier New', Courier, monospace; } 
+     .modal-description { margin-top: 20px; color: #4b5563; line-height: 1.6; } 
+     .modal-cover-image { width: 100%; height: 250px; object-fit: cover; border-radius: 12px; margin-bottom: 20px; } 
+
+     #add-project-modal { max-width: 800px; max-height: 90vh; } 
+     #add-project-modal .modal-body { display: block; padding: 30px; overflow-y: auto; } 
+     .form-group { margin-bottom: 20px; } 
+     .form-label { display: block; font-weight: 500; color: #374151; margin-bottom: 8px; } 
+     .form-input { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px 12px; font-size: 1rem; transition: border-color 0.2s, box-shadow 0.2s; } 
+     .form-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); outline: none; } 
+     textarea.form-input { min-height: 120px; } 
+     .modal-footer { padding: 20px 30px; border-top: 1px solid #e5e7eb; text-align: right; } 
+     .btn-primary { background-color: #3b82f6; color: white; font-weight: 600; padding: 12px 24px; border-radius: 8px; transition: background-color 0.2s; cursor: pointer; } 
+     .btn-primary:hover { background-color: #2563eb; } 
+     .btn-primary:disabled { background-color: #9ca3af; cursor: not-allowed; } 
+
+     #image-paste-zone { border: 2px dashed #d1d5db; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s, background-color 0.2s; min-height: 150px; display: flex; align-items: center; justify-content: center; flex-direction: column; } 
+     #image-paste-zone:hover { border-color: #3b82f6; background-color: #f9fafb; } 
+     #image-preview { max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 10px; display: none; } 
+     #p73-status-banner { position: fixed; left: 16px; right: 16px; top: 16px; z-index: 9999; display:flex; justify-content:center; pointer-events:none; } 
+     .p73-banner { pointer-events:auto; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 6px; font-size:13px; box-shadow: 0 6px 18px rgba(0,0,0,0.2); } 
+     .p73-banner.error { background: #b91c1c; } 
+   </style> 
+ </head> 
+ <body> 
+
+   <div id="p73-status-banner"></div> 
+   <div id="grid-container"></div> 
+
+   <!-- Modal pro zobrazení detailu projektu --> 
+   <div id="project-modal-overlay" class="modal-overlay"> 
+     <div id="project-modal" class="modal"> 
+       <div class="modal-header"> 
+         <h2 id="modal-project-title" class="modal-title"></h2> 
+         <button class="modal-close-btn" data-close-modal="project-modal-overlay"> 
+           <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> 
+         </button> 
+       </div> 
+       <div class="modal-body"> 
+         <div class="modal-content"> 
+           <img id="modal-project-image" src="" alt="Náhledový obrázek projektu" class="modal-cover-image"> 
+           <p id="modal-project-description" class="modal-description"></p> 
+         </div> 
+         <div class="modal-code-container"> 
+           <pre><code id="modal-project-code"></code></pre> 
+         </div> 
+       </div> 
+     </div> 
+   </div> 
+
+   <!-- Modální okno pro přidání nového projektu --> 
+   <div id="add-project-modal-overlay" class="modal-overlay"> 
+     <div id="add-project-modal" class="modal"> 
+       <div class="modal-header"> 
+         <h2 class="modal-title">Vytvořit nový projekt</h2> 
+         <button class="modal-close-btn" data-close-modal="add-project-modal-overlay"> 
+           <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> 
+         </button> 
+       </div> 
+       <form id="add-project-form"> 
+         <div class="modal-body"> 
+             <div class="form-group"> 
+                 <label for="project-title-input" class="form-label">Název projektu</label> 
+                 <input type="text" id="project-title-input" class="form-input" required> 
+             </div> 
+             <div class="form-group"> 
+               <label class="form-label">Hlavní obrázek</label> 
+               <div id="image-paste-zone"> 
+                 <p id="paste-placeholder" class="text-gray-500">Klikněte sem a vložte obrázek (Ctrl+V)</p> 
+                 <img id="image-preview" alt="Náhled vloženého obrázku"> 
+               </div> 
+             </div> 
+             <div class="form-group"> 
+                 <label for="project-description-input" class="form-label">Popis</label> 
+                 <textarea id="project-description-input" class="form-input" required></textarea> 
+             </div> 
+             <div class="form-group"> 
+                 <label for="project-code-input" class="form-label">Kód</label> 
+                 <textarea id="project-code-input" class="form-input" rows="10"></textarea> 
+             </div> 
+              <div class="form-group"> 
+                 <label for="project-language-input" class="form-label">Jazyk kódu</label> 
+                 <input type="text" id="project-language-input" class="form-input" value="html" placeholder="html, css, javascript..."> 
+             </div> 
+         </div> 
+         <div class="modal-footer"> 
+             <button type="submit" id="save-project-btn" class="btn-primary">Uložit projekt</button> 
+         </div> 
+       </form> 
+     </div> 
+   </div> 
+    
+   <script> 
+     // ================================================================================= 
+     // --- 1. GLOBÁLNÍ STAV --- 
+     // ================================================================================= 
+     let currentUser = null; 
+     let gridDocRef = null; 
+     let unsubscribeListener = null; 
+     let currentAddProjectPosition = null; 
+     let newProjectImageBlob = null;  
+  let isFirebaseReady = false; // nastaví se po ověření existence session dokumentu
+  const DEBUG_TIMING = true;
+
+     // ================================================================================= 
+     // --- 2. DATOVÉ OPERACE (FIREBASE) --- 
+     // ================================================================================= 
+     async function getGridData() { 
+       if (!gridDocRef) return null; 
+       const docSnap = await window.firebase.getDoc(gridDocRef); 
+       return docSnap.exists() ? docSnap.data().gridData : null; 
+     } 
+
+     async function saveNewProject(position, projectData) { 
+    if (!gridDocRef) { 
+      showBanner('Session ještě není připravena. Zkuste znovu za chvíli.', 'error'); 
+      return; 
+    } 
+    const { getDoc, setDoc, updateDoc, serverTimestamp } = window.firebase; 
+    // Ujisti se, že dokument existuje (updateDoc selže pokud ne) 
+    const snap = await getDoc(gridDocRef); 
+    if (!snap.exists()) { 
+      await setDoc(gridDocRef, { gridData: {}, created: serverTimestamp(), lastModified: serverTimestamp() }, { merge: true }); 
+    } 
+        try {
+          await updateDoc(gridDocRef, { 
+              [`gridData.${position}`]: { ...projectData, createdAt: serverTimestamp() }, 
+              'lastModified': serverTimestamp() 
+          }); 
+        } catch (e) { 
+          console.error('❌ updateDoc selhal (saveNewProject)', { position, projectTitle: projectData?.projectTitle, error: e });
+          showBanner('Chyba při ukládání do Firestore.', 'error');
+          throw e;
+        }
+     } 
+
+     async function uploadProjectCoverImage(blob, position) { 
+      if (!currentUser) throw new Error("User not authenticated"); 
+      const start = performance.now();
+      const { storage, ref, getDownloadURL } = window.firebase; 
+      // Použijeme uploadBytesResumable pro progress
+      const storagePath = `project_covers/${currentUser.uid}/${position}_${Date.now()}.png`; 
+      const storageRef = ref(storage, storagePath); 
+      return await new Promise((resolve, reject) => { 
+        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js')
+          .then(mod => { 
+            const uploadTask = mod.uploadBytesResumable(storageRef, blob); 
+            uploadTask.on('state_changed', (snap) => { 
+              const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100); 
+              const btn = document.getElementById('save-project-btn'); 
+              if (btn) btn.textContent = `Nahrávám ${pct}%`; 
+            }, (err) => { 
+              reject(err); 
+            }, async () => { 
+              try { 
+                const url = await getDownloadURL(uploadTask.snapshot.ref); 
+                if (DEBUG_TIMING) console.log(`⏱️ Upload hotovo za ${(performance.now()-start).toFixed(0)}ms`); 
+                resolve(url); 
+              } catch(e){ reject(e); } 
+            }); 
+          })
+          .catch(reject); 
+      }); 
+     } 
+
+     // ================================================================================= 
+     // --- 3. MANIPULACE S UI (DOM) --- 
+     // ================================================================================= 
+      function showBanner(message, type = 'info', timeout = 4000) { 
+         const container = document.getElementById('p73-status-banner'); 
+         if (!container) return; 
+         const div = document.createElement('div'); 
+         div.className = 'p73-banner' + (type === 'error' ? ' error' : ''); 
+         div.textContent = message; 
+         container.innerHTML = ''; 
+         container.appendChild(div); 
+         setTimeout(() => { 
+             if (container.contains(div)) container.removeChild(div); 
+         }, timeout); 
+     } 
+
+     function renderGrid(gridData = {}) { 
+         const gridContainer = document.getElementById('grid-container'); 
+         gridContainer.innerHTML = '';  
+
+         const rows = 7, cols = 15; 
+         for (let r = 1; r <= rows; r++) { 
+             const rowEl = document.createElement('div'); 
+             rowEl.className = 'row'; 
+             for (let c = 1; c <= cols; c++) { 
+                 const position = `${r}-${c}`; 
+                 const boxData = gridData[position]; 
+                 const boxEl = document.createElement('div'); 
+                 boxEl.className = 'box'; 
+                 boxEl.dataset.position = position; 
+
+                 if (boxData && boxData.projectTitle) { 
+                     boxEl.style.backgroundImage = `url(${boxData.projectCoverImage || 'https://placehold.co/400x300/e2e8f0/64748b?text=Projekt'})`; 
+                     boxEl.innerHTML = `<div class="box-overlay"><h3 class="box-title">${boxData.projectTitle}</h3></div>`; 
+                 } else { 
+                     boxEl.innerHTML = `<div class="flex items-center justify-center h-full text-4xl text-gray-400 font-light">+</div>`; 
+                 } 
+                 rowEl.appendChild(boxEl); 
+             } 
+             gridContainer.appendChild(rowEl); 
+         } 
+     } 
+
+     async function showProjectModal(position) { 
+         const gridData = await getGridData(); 
+         const project = gridData ? gridData[position] : null; 
+         if (!project) return; 
+
+         document.getElementById('modal-project-title').textContent = project.projectTitle; 
+         document.getElementById('modal-project-image').src = project.projectCoverImage || ''; 
+         document.getElementById('modal-project-description').textContent = project.projectData.description || ''; 
+          
+         const codeElement = document.getElementById('modal-project-code'); 
+         codeElement.textContent = project.projectData.codeSnippet || 'Žádný kód k zobrazení.'; 
+         codeElement.className = `language-${project.projectData.language || 'plaintext'}`; 
+         hljs.highlightElement(codeElement); 
+          
+         document.getElementById('project-modal-overlay').classList.add('visible'); 
+     } 
+
+     function showAddProjectModal(position) { 
+         currentAddProjectPosition = position; 
+         resetAddProjectModal(); 
+         document.getElementById('add-project-modal-overlay').classList.add('visible'); 
+     } 
+
+     function hideModal(overlayId) { 
+         document.getElementById(overlayId).classList.remove('visible'); 
+     } 
+
+     function resetAddProjectModal() { 
+         document.getElementById('add-project-form').reset(); 
+         const preview = document.getElementById('image-preview'); 
+         const placeholder = document.getElementById('paste-placeholder'); 
+         preview.style.display = 'none'; 
+         preview.src = ''; 
+         placeholder.style.display = 'block'; 
+         if (preview.src) { 
+             URL.revokeObjectURL(preview.src); 
+         } 
+         newProjectImageBlob = null; 
+     } 
+
+     // ================================================================================= 
+     // --- 4. APLIKAČNÍ LOGIKA A INICIALIZACE --- 
+     // ================================================================================= 
+     async function onUserSignedIn(user) { 
+    currentUser = user; 
+    const collectionName = 'project73-sessions';  
+    const sessionId = 'main_session_v2'; 
+    gridDocRef = window.firebase.doc(window.firebase.db, collectionName, sessionId); 
+    // Zajisti existenci dokumentu (při prvním spuštění nebude) 
+    const { getDoc, setDoc, serverTimestamp } = window.firebase; 
+    try { 
+      const snap = await getDoc(gridDocRef); 
+      if (!snap.exists()) { 
+        await setDoc(gridDocRef, { 
+          gridData: {}, 
+          stats: { totalBoxes: 105, filledBoxes: 0, emptyBoxes: 105 }, 
+          created: serverTimestamp(), 
+          lastModified: serverTimestamp(), 
+          metadata: { version: '1.0', project: 'Project_73' } 
+        }); 
+        console.log('🆕 Vytvořen nový session dokument main_session_v2'); 
+      } 
+      isFirebaseReady = true; 
+      showBanner('Firebase připraven.'); 
+    } catch (e) { 
+      console.error('❌ Chyba při zajištění session dokumentu:', e); 
+      showBanner('Chyba Firebase inicializace', 'error'); 
+    } 
+    setupRealtimeListener(); 
+     } 
+
+     function setupRealtimeListener() { 
+         if (unsubscribeListener) unsubscribeListener(); 
+         if (!gridDocRef) return; 
+          
+      unsubscribeListener = window.firebase.onSnapshot(
+       gridDocRef,
+       (doc) => { renderGrid(doc.exists() ? doc.data().gridData : {}); },
+       (err) => { console.error('❌ onSnapshot error', err); showBanner('Chyba realtime připojení', 'error'); }
+      ); 
+     } 
+
+     function initializeEventListeners() { 
+         document.getElementById('grid-container').addEventListener('click', async (event) => { 
+             const targetBox = event.target.closest('.box'); 
+             if (!targetBox) return; 
+              
+             const position = targetBox.dataset.position; 
+             const gridData = await getGridData(); 
+             const projectExists = gridData && gridData[position]; 
+
+             if (projectExists) { 
+                 showProjectModal(position); 
+             } else { 
+                 showAddProjectModal(position); 
+             } 
+         }); 
+
+         document.querySelectorAll('[data-close-modal]').forEach(btn => { 
+             const overlayId = btn.dataset.closeModal; 
+             btn.addEventListener('click', () => hideModal(overlayId)); 
+         }); 
+          
+         document.querySelectorAll('.modal-overlay').forEach(overlay => { 
+              overlay.addEventListener('click', (event) => { 
+                 if (event.target === overlay) hideModal(overlay.id); 
+             }); 
+         }); 
+
+         document.addEventListener('keydown', (event) => { 
+             if (event.key === 'Escape') { 
+                 hideModal('project-modal-overlay'); 
+                 hideModal('add-project-modal-overlay'); 
+             } 
+         }); 
+          
+         document.getElementById('image-paste-zone').addEventListener('paste', (event) => { 
+             const items = (event.clipboardData || window.clipboardData).items; 
+             for (const item of items) { 
+                 if (item.type.indexOf('image') !== -1) { 
+                     event.preventDefault(); 
+                     newProjectImageBlob = item.getAsFile(); 
+                     const preview = document.getElementById('image-preview'); 
+                     const placeholder = document.getElementById('paste-placeholder'); 
+                      
+                     if (preview.src) URL.revokeObjectURL(preview.src);  
+                      
+                     preview.src = URL.createObjectURL(newProjectImageBlob); 
+                     preview.style.display = 'block'; 
+                     placeholder.style.display = 'none'; 
+                     return; 
+                 } 
+             } 
+         }); 
+
+         document.getElementById('add-project-form').addEventListener('submit', async (event) => { 
+             event.preventDefault(); 
+             if (!currentAddProjectPosition) return; 
+       if (!isFirebaseReady) { 
+        showBanner('Firebase není připraven – zkuste znovu za chvíli.', 'error'); 
+        return; 
+       } 
+              
+             const saveBtn = document.getElementById('save-project-btn'); 
+             saveBtn.disabled = true; 
+             saveBtn.textContent = 'Ukládám...'; 
+
+      try { 
+        const globalStart = performance.now();
+        let imageUrl = ''; 
+        if (newProjectImageBlob) { 
+          const uploadTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('Upload timeout (15s)')), 15000));
+          imageUrl = await Promise.race([
+            uploadProjectCoverImage(newProjectImageBlob, currentAddProjectPosition),
+            uploadTimeout
+          ]); 
+        } 
+
+        const newProjectData = { 
+          projectTitle: document.getElementById('project-title-input').value.trim(), 
+          projectCoverImage: imageUrl, 
+          projectData: { 
+            description: document.getElementById('project-description-input').value, 
+            codeSnippet: document.getElementById('project-code-input').value, 
+            language: document.getElementById('project-language-input').value || 'plaintext', 
+          } 
+        }; 
+        const saveStart = performance.now();
+        await saveNewProject(currentAddProjectPosition, newProjectData); 
+        if (DEBUG_TIMING) console.log(`⏱️ Firestore zápis ${(performance.now()-saveStart).toFixed(0)}ms, celkem ${(performance.now()-globalStart).toFixed(0)}ms`);
+        hideModal('add-project-modal-overlay'); 
+        showBanner('Projekt uložen.', 'info'); 
+
+      } catch (error) { 
+        console.error("Error saving project:", error); 
+        showBanner(`Chyba při ukládání: ${error.message}`, 'error'); 
+      } finally { 
+        saveBtn.disabled = false; 
+        saveBtn.textContent = 'Uložit projekt'; 
+      } 
+         }); 
+     } 
+
+     document.addEventListener('DOMContentLoaded', () => { 
+         initializeEventListeners(); 
+         const { auth, onAuthStateChanged, signInAnonymously } = window.firebase; 
+         onAuthStateChanged(auth, (user) => { 
+             if (user) onUserSignedIn(user); 
+             else signInAnonymously(auth).catch(err => console.error("Sign-in failed:", err)); 
+         }); 
+     }); 
+   </script> 
+ </body> 
+ </html>

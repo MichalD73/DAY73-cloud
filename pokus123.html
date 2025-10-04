@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project_73 - Canvas Grid [v3.0]</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp, query, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDdKzUd-QVHEdHMGl3kbuAKk4p6CjgkgzQ",
+      authDomain: "central-asset-storage.firebaseapp.com",
+      projectId: "central-asset-storage",
+      storageBucket: "central-asset-storage.appspot.com",
+      messagingSenderId: "907874309868",
+      appId: "1:907874309868:web:5354ee69d6212f3d9937c9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    window.firebase = { 
+      db, auth, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, serverTimestamp,
+      query, where, limit, getDocs,
+      signInAnonymously, onAuthStateChanged
+    };
+    console.log('🧪 Project_73 v3.0 - Firebase SDK loaded');
+  </script>
+  <!-- Konva.js SDK -->
+  <script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f0f4f8;
+      margin: 0;
+      padding: 0;
+      display: flex;
+    }
+    #main-content {
+        flex: 1;
+        height: 100vh;
+        overflow: auto;
+    }
+    #canvas-container {
+        cursor: grab;
+    }
+    #sidebar {
+      width: 280px;
+      height: 100vh;
+      background: white;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+      overflow-y: auto;
+      padding: 20px;
+      flex-shrink: 0;
+    }
+     /* ... (styly pro sidebar a další UI prvky mohou zůstat podobné) ... */
+    .sidebar-header { font-weight: 600; font-size: 18px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+    .sidebar-section { margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <div class="sidebar-header">Project_73 Canvas</div>
+    <div class="sidebar-section">
+      <h3 class="font-medium mb-2">Informace</h3>
+      <p class="text-sm">Toto je nová verze aplikace využívající HTML Canvas pro maximální výkon.</p>
+       <p class="text-sm mt-2"><strong>Úkol:</strong> Přetahujte barevné boxy.</p>
+    </div>
+     <div class="sidebar-section">
+      <h3 class="font-medium mb-2">Stav</h3>
+      <div class="text-sm">
+        <p>Session ID: <span id="session-id-display">načítání...</span></p>
+        <p>Stav: <span id="firebase-status">načítání...</span></p>
+      </div>
+    </div>
+  </div>
+
+  <main id="main-content">
+      <!-- Kontejner, kam Konva vloží své plátno -->
+      <div id="canvas-container"></div>
+  </main>
+  
+  <script>
+    // =================================================================================
+    // --- 1. KONFIGURACE A GLOBÁLNÍ STAV ---
+    // =================================================================================
+    let currentUser = null;
+    let isFirebaseReady = false;
+    let unsubscribeListener = null; 
+
+    let currentWorkspace = 'default_workspace';
+    let sessionId = null;
+    let gridDocRef = null;
+
+    // --- Konfigurace mřížky a plátna ---
+    const GRID_ROWS = 7;
+    const GRID_COLS = 15;
+    const CELL_WIDTH = 180;
+    const CELL_HEIGHT = 120;
+    const GAP = 12;
+
+    const STAGE_PADDING = 24;
+    const stageWidth = GRID_COLS * (CELL_WIDTH + GAP) - GAP + (2 * STAGE_PADDING);
+    const stageHeight = GRID_ROWS * (CELL_HEIGHT + GAP) - GAP + (2 * STAGE_PADDING);
+    
+    // --- Konva.js instance ---
+    let stage, gridLayer, contentLayer;
+
+    // =================================================================================
+    // --- 2. DATOVÉ OPERACE (FIREBASE) ---
+    // =================================================================================
+    async function initializeSession() {
+      // Zjednodušená verze pro tento prototyp
+      const { db, doc, getDoc, setDoc, serverTimestamp } = window.firebase;
+      sessionId = `canvas_session_${currentUser.uid.slice(0, 8)}`;
+      gridDocRef = doc(db, 'project73_canvas_sessions', sessionId);
+      
+      const docSnap = await getDoc(gridDocRef);
+      if (!docSnap.exists()) {
+        console.log('Creating new canvas session...');
+        await setDoc(gridDocRef, {
+          userId: currentUser.uid,
+          createdAt: serverTimestamp(),
+          gridData: { // Přidáme pár výchozích boxů pro ukázku
+            '1-1': { color: '#3b82f6', text: 'Box A' },
+            '1-3': { color: '#8b5cf6', text: 'Box B' },
+            '2-2': { color: '#10b981', text: 'Box C' },
+          }
+        });
+      }
+      console.log(`✅ Session initialized: ${sessionId}`);
+      document.getElementById('session-id-display').textContent = sessionId;
+    }
+
+    async function updateBoxPositionInFirestore(boxId, newPosition) {
+        if (!gridDocRef) return;
+        const { getDoc, updateDoc, serverTimestamp } = window.firebase;
+        
+        console.log(`Attempting to move ${boxId} to ${newPosition}`);
+        
+        const docSnap = await getDoc(gridDocRef);
+        if (!docSnap.exists()) return;
+
+        const gridData = docSnap.data().gridData || {};
+        
+        // Najít starou pozici boxu
+        let oldPosition = null;
+        for (const pos in gridData) {
+            if (gridData[pos].id === boxId) {
+                oldPosition = pos;
+                break;
+            }
+        }
+
+        if (oldPosition === newPosition) return; // Beze změny
+
+        const dataToMove = oldPosition ? gridData[oldPosition] : null;
+
+        // Pokud na cílové pozici něco je, prohodíme to
+        const targetData = gridData[newPosition] || null;
+
+        const updates = {};
+        updates[`gridData.${newPosition}`] = dataToMove;
+        
+        if (targetData && oldPosition) {
+             updates[`gridData.${oldPosition}`] = targetData;
+        } else if (oldPosition) {
+            delete gridData[oldPosition]; // Musíme smazat starý záznam
+            updates.gridData = gridData; // Nahrajeme celý objekt bez staré pozice
+        }
+        
+        updates.lastModified = serverTimestamp();
+        await updateDoc(gridDocRef, updates);
+        console.log(`✅ Box ${boxId} moved from ${oldPosition} to ${newPosition} in Firestore.`);
+    }
+
+    // =================================================================================
+    // --- 3. MANIPULACE S PLÁTNEM (KONVA.JS) ---
+    // =================================================================================
+    
+    function initializeCanvas() {
+        stage = new Konva.Stage({
+            container: 'canvas-container',
+            width: stageWidth,
+            height: stageHeight
+        });
+
+        gridLayer = new Konva.Layer();
+        stage.add(gridLayer);
+
+        contentLayer = new Konva.Layer();
+        stage.add(contentLayer);
+
+        drawGridBackground();
+        console.log('🎨 Canvas initialized.');
+    }
+
+    function drawGridBackground() {
+        for (let r = 0; r < GRID_ROWS; r++) {
+            for (let c = 0; c < GRID_COLS; c++) {
+                const x = STAGE_PADDING + c * (CELL_WIDTH + GAP);
+                const y = STAGE_PADDING + r * (CELL_HEIGHT + GAP);
+
+                const cell = new Konva.Rect({
+                    x: x, y: y,
+                    width: CELL_WIDTH, height: CELL_HEIGHT,
+                    fill: '#e2e8f0',
+                    cornerRadius: 8,
+                });
+                gridLayer.add(cell);
+            }
+        }
+    }
+
+    function renderCanvasData(gridData = {}) {
+        contentLayer.destroyChildren(); // Smažeme starý obsah
+
+        for (const position in gridData) {
+            const data = gridData[position];
+            const [row, col] = position.split('-').map(Number);
+            
+            const x = STAGE_PADDING + (col - 1) * (CELL_WIDTH + GAP);
+            const y = STAGE_PADDING + (row - 1) * (CELL_HEIGHT + GAP);
+
+            const group = new Konva.Group({
+                x: x, y: y,
+                width: CELL_WIDTH, height: CELL_HEIGHT,
+                draggable: true,
+                id: data.id || position, // Unikátní ID pro identifikaci
+                'data-position': position
+            });
+
+            const box = new Konva.Rect({
+                width: CELL_WIDTH, height: CELL_HEIGHT,
+                fill: data.color || '#cbd5e1',
+                cornerRadius: 10,
+                stroke: '#94a3b8',
+                strokeWidth: 2
+            });
+            group.add(box);
+
+            if (data.text) {
+                 const text = new Konva.Text({
+                    text: data.text,
+                    fontSize: 18,
+                    fontFamily: 'Inter, sans-serif',
+                    fill: 'white',
+                    width: CELL_WIDTH,
+                    padding: 10,
+                    align: 'center'
+                });
+                group.add(text);
+            }
+            
+            // --- Interaktivita ---
+            group.on('dragstart', () => {
+                group.moveToTop();
+                document.body.style.cursor = 'grabbing';
+                group.to({ scaleX: 1.05, scaleY: 1.05, duration: 0.1 });
+            });
+
+            group.on('dragend', (e) => {
+                document.body.style.cursor = 'grab';
+                group.to({ scaleX: 1, scaleY: 1, duration: 0.1 });
+                
+                // Najít nejbližší buňku a přichytit se k ní
+                const endX = e.target.x();
+                const endY = e.target.y();
+
+                const c = Math.round((endX - STAGE_PADDING) / (CELL_WIDTH + GAP));
+                const r = Math.round((endY - STAGE_PADDING) / (CELL_HEIGHT + GAP));
+
+                const newCol = Math.max(0, Math.min(GRID_COLS - 1, c)) + 1;
+                const newRow = Math.max(0, Math.min(GRID_ROWS - 1, r)) + 1;
+                
+                const newPosition = `${newRow}-${newCol}`;
+                
+                // ID boxu je uloženo v group.id()
+                updateBoxPositionInFirestore(group.id(), newPosition);
+
+                // Poznámka: Pohyb se dokončí až po obdržení aktualizace z Firebase,
+                // což zaručí konzistenci dat. Pro ještě lepší pocit bychom mohli
+                // přidat optimistickou aktualizaci i zde.
+            });
+             group.on('mouseover', () => { document.body.style.cursor = 'grab'; });
+             group.on('mouseout', () => { document.body.style.cursor = 'default'; });
+
+
+            contentLayer.add(group);
+        }
+        console.log('📊 Canvas rendered with new data.');
+    }
+
+
+    // =================================================================================
+    // --- 4. APLIKAČNÍ LOGIKA ---
+    // =================================================================================
+
+    function setupRealtimeListener() {
+        if (unsubscribeListener) unsubscribeListener();
+        if (!gridDocRef) return;
+        
+        unsubscribeListener = window.firebase.onSnapshot(gridDocRef, (snap) => {
+            if (snap.exists()) {
+                const gridData = snap.data().gridData;
+                // Přidáme unikátní ID ke každému objektu, pokud chybí
+                 for(const pos in gridData){
+                    if(!gridData[pos].id) gridData[pos].id = pos;
+                 }
+                renderCanvasData(gridData);
+            }
+        }, (err) => console.error('❌ onSnapshot error:', err));
+    }
+
+    async function onUserSignedIn(user) {
+        currentUser = user;
+        console.log('✅ User signed in:', user.uid);
+        document.getElementById('firebase-status').textContent = 'Připojeno';
+        
+        await initializeSession();
+        setupRealtimeListener();
+        
+        isFirebaseReady = true;
+    }
+
+    // =================================================================================
+    // --- 5. INICIALIZACE APLIKACE ---
+    // =================================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('🚀 DOM loaded, initializing app...');
+        initializeCanvas();
+
+        const { auth, onAuthStateChanged, signInAnonymously } = window.firebase;
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                onUserSignedIn(user);
+            } else {
+                signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
+            }
+        });
+    });
+  </script>
+</body>
+</html>
+```

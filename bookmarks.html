@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Bookmarks</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #f8fafc; }
+    .card { box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+  </style>
+</head>
+<body class="p-4">
+  <div class="max-w-3xl mx-auto space-y-4">
+    <div class="card bg-white rounded-2xl p-4">
+      <div class="flex gap-2">
+        <input id="bm-title" class="flex-1 border rounded px-2 py-2" placeholder="Název"/>
+        <input id="bm-url" class="flex-1 border rounded px-2 py-2" placeholder="https://…"/>
+        <button id="bm-add" class="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition">Přidat</button>
+      </div>
+    </div>
+    
+    <div class="card bg-white rounded-2xl p-4">
+      <div class="flex justify-between items-center">
+        <h2 class="font-semibold">Seznam záložek</h2>
+        <div class="space-x-2">
+          <button id="bm-export" class="px-2 py-1 border rounded text-sm hover:bg-gray-50 transition">Export</button>
+          <button id="bm-import" class="px-2 py-1 border rounded text-sm hover:bg-gray-50 transition">Import</button>
+          <button id="bm-clear" class="px-2 py-1 border rounded text-red-600 text-sm hover:bg-red-50 transition">Vymazat</button>
+        </div>
+      </div>
+      <div id="bm-list" class="mt-3 grid md:grid-cols-2 gap-2"></div>
+    </div>
+  </div>
+
+  <script>
+    const KEY = 'p73_bookmarks_v1';
+    const $ = s => document.querySelector(s);
+    const listEl = $('#bm-list');
+
+    function read() { 
+      try { 
+        return JSON.parse(localStorage.getItem(KEY) || '[]'); 
+      } catch { 
+        return []; 
+      } 
+    }
+
+    function write(bookmarks) { 
+      localStorage.setItem(KEY, JSON.stringify(bookmarks)); 
+      render(); 
+    }
+
+    function render() {
+      const items = read();
+      if (items.length === 0) {
+        listEl.innerHTML = '<div class="col-span-2 text-center text-gray-500 py-8">Žádné záložky</div>';
+        return;
+      }
+      
+      listEl.innerHTML = items.map((item, i) => `
+        <div class="border rounded-lg p-3 flex items-center justify-between hover:bg-gray-50 transition">
+          <div class="min-w-0 flex-1">
+            <div class="font-medium truncate">${item.title || item.url}</div>
+            <a class="text-sm text-blue-600 truncate hover:underline" href="${item.url}" target="_blank" rel="noopener">${item.url}</a>
+          </div>
+          <div class="flex items-center gap-2 ml-2">
+            <button data-i="${i}" class="open px-2 py-1 text-sm border rounded hover:bg-blue-50 transition">Otevřít</button>
+            <button data-i="${i}" class="del px-2 py-1 text-sm border rounded hover:bg-red-50 transition">✕</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Přidání nové záložky
+    $('#bm-add').onclick = () => {
+      const title = $('#bm-title').value.trim();
+      const url = $('#bm-url').value.trim();
+      
+      if (!url) {
+        alert('URL je povinné pole');
+        return;
+      }
+      
+      if (!/^https?:\/\//i.test(url)) {
+        alert('URL musí začínat http:// nebo https://');
+        return;
+      }
+      
+      const bookmarks = read();
+      bookmarks.push({ title, url, created: new Date().toISOString() });
+      write(bookmarks);
+      
+      $('#bm-title').value = '';
+      $('#bm-url').value = '';
+    };
+
+    // Enter v inputech
+    $('#bm-title').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') $('#bm-url').focus();
+    });
+    
+    $('#bm-url').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') $('#bm-add').click();
+    });
+
+    // Akce nad záložkami
+    listEl.onclick = (e) => {
+      const i = e.target.dataset.i;
+      if (i === undefined) return;
+      
+      const bookmarks = read();
+      
+      if (e.target.classList.contains('del')) {
+        bookmarks.splice(i, 1);
+        write(bookmarks);
+      }
+      
+      if (e.target.classList.contains('open')) {
+        window.open(bookmarks[i].url, '_blank', 'noopener');
+      }
+    };
+
+    // Export do JSON
+    $('#bm-export').onclick = () => {
+      const data = localStorage.getItem(KEY) || '[]';
+      const blob = new Blob([data], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'bookmarks.json';
+      a.click();
+    };
+
+    // Import z JSON
+    $('#bm-import').onclick = () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json';
+      
+      input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+        
+        try {
+          const text = await file.text();
+          const imported = JSON.parse(text);
+          
+          if (Array.isArray(imported)) {
+            write(imported);
+            alert(`Importováno ${imported.length} záložek`);
+          } else {
+            alert('Neplatný formát souboru');
+          }
+        } catch (e) {
+          alert('Chyba při čtení souboru');
+        }
+      };
+      
+      input.click();
+    };
+
+    // Vymazání všech záložek
+    $('#bm-clear').onclick = () => {
+      if (confirm('Opravdu smazat všechny záložky?')) {
+        write([]);
+      }
+    };
+
+    // Inicializace
+    render();
+  </script>
+</body>
+</html>

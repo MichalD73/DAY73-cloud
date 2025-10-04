@@ -1,0 +1,102 @@
+MANUÁL: GRID App (Workspace7)
+
+Účel
+- Tento manuál shrnuje, co je „Grid App“, kde v projektu žije, jak ji spouštět, jaké soubory upravujeme při vývoji a doporučení pro další organizaci.
+
+Kde aplikace žije (aktuální stav)
+- Workspace: Workspace7 (tento repozitář)
+- Grid App je samostatná statická HTML aplikace, tvořená několika HTML soubory v kořeni:
+  - grid-app-test.html – HUB shell s horním menu, které do <iframe> načítá obsah.
+  - grid-app-content.html – hlavní aplikace: mřížka 15×7, levý/pravý panel, detail boxu, paste/drag logika, Firebase inicializace (Auth, Firestore, Storage), práce se „sessions“ v kolekci project73-sessions.
+  - firebase-diagnostic.html – diagnostický nástroj (ověření Auth, Firestore, přehled sessions, vzorky grid dat).
+  - firebase-test-complete.html – demo/test hub s Firebase (uploady atd.).
+- Další související soubory:
+  - drag-fix.js – pomocný skript pro stabilitu drag & drop (globální injekce; používá se u jiných částí).
+  - GRID-APP-DEV.md – vývojová dokumentace (roadmap, TODO, debug tipy).
+  - GRID-SETUP-COMPLETE.md – shrnutí co bylo vytvořeno a workflow pro další kroky.
+
+Jak rychle spustit
+- Otevři grid-app-test.html v prohlížeči (double‑click nebo Live Server).
+- V menu v horní liště přepínej mezi Grid App, Firebase Diagnostikou a Firebase Testem.
+- Grid samotný běží v grid-app-content.html, který se načítá do <iframe>.
+
+Co dělají klíčové soubory
+- grid-app-test.html
+  - Shell s menu, přepíná obsah do <iframe> (grid‑app‑content, diagnostika, test).
+  - Při přesunu do podsložky je nutné upravit relativní odkazy.
+- grid-app-content.html
+  - Hlavní logika a UI mřížky (15×7 = 105 boxů), boční panely, detail panel, paste/drag.
+  - Firebase init: Auth (anonymní), Firestore (kolekce project73-sessions), Storage.
+  - Strategie session: fingerprint → localStorage → fallback na libovolnou session s daty → vytvoření nové.
+  - Real‑time listener načítá a synchronizuje grid data.
+  - Status banner a jednoduché statistiky.
+- firebase-diagnostic.html
+  - Spustí plnou diagnostiku: Auth, Firestore, přehled sessions (top 10), ukázkové grid položky.
+  - Vhodné při ověřování připojení a obsahu databáze.
+- firebase-test-complete.html
+  - Kompletní demo s Firebase pro rychlé ověření funkcí.
+
+Související (mimo Grid App, ale v témže workspace)
+- React/Vite aplikace (index.html → src/main.jsx → src/App.jsx) – oddělená app uvnitř téhož Workspace7.
+- Firebase Cloud Functions v functions/ (callable endpoints; zatím scaffold + příklad Gemini).
+
+Kde budeme dělat změny (praktická mapa)
+- UI/UX mřížky a panelů: grid-app-content.html
+- Firebase persistence a real‑time: grid-app-content.html (případně sjednocení configu se src/firebase-config.js)
+- Diagnostika a troubleshooting: firebase-diagnostic.html
+- Navigace/HUB: grid-app-test.html
+- Drag & drop stabilita: drag-fix.js (případně CSS úpravy v grid-app-content.html)
+- Dokumentace/roadmapa: GRID-APP-DEV.md, GRID-SETUP-COMPLETE.md
+- Deploy/hosting (jen pokud bude potřeba): firebase.json (target pouze pro tuto app nebo celé repo)
+
+Doporučená reorganizace (neprovádí změny, jen návrh)
+- Vytvořit podsložku: apps/grid-app/
+  - Přesunout: grid-app-test.html, grid-app-content.html, firebase-diagnostic.html, firebase-test-complete.html
+  - Přidat: apps/grid-app/README.md (stručný popis, jak spustit)
+  - Volitelně rozdělit kód do modulů: apps/grid-app/js/grid.js, apps/grid-app/js/firebase.js, apps/grid-app/css/styles.css
+- Výhody: pořádek, snazší navigace, menší riziko kolizí názvů, snazší cílený deploy.
+- Kdy nechat v kořeni: pokud je to krátkodobý prototyp a chceš okamžitý double‑click bez úprav cest.
+- Kdy úplně vyčlenit mimo Workspace7 (samostatné repo): pokud potřebuje vlastní lifecycle, CI/CD, verze, tým, rozdílné secret management.
+
+Klíčové parametry gridu (pro rychlou orientaci)
+- Velikost: 15 sloupců × 7 řádků (105 boxů)
+- Box rozměry: min‑width ~133 px, height ~170–190 px (dle media queries)
+- Mezery: 12 px, horizontální scroll na užších displejích
+- Vizuální stavy: .dragging, .dragover, aktivní box (border, background indikace)
+
+Klávesové zkratky a debug (viz GRID-APP-DEV.md)
+- Debug panel toggle: F12 nebo Ctrl+D
+- Clear all: Ctrl+R
+- Deaktivace boxu: Escape
+
+Firebase (kontext pro Grid App)
+- Projekt: central-asset-storage
+- Auth: anonymní přihlášení (nutné mít povolené v Firebase Console)
+- Firestore: kolekce project73-sessions (gridData, userId, timestamps)
+- Storage: bucket gs://central-asset-storage.firebasestorage.app
+- grid-app-content.html provádí:
+  - signInAnonymously → strategie výběru/volby session → načtení dat → realtime listener → update UI
+
+Časté kroky při vývoji
+- Otevřít grid-app-test.html a přepnout na Grid App
+- V grid-app-content.html upravit UI/UX nebo logiku (paste, detail panel, ukládání popisů, atd.)
+- Ověřit připojení a data přes firebase-diagnostic.html
+- Aktualizovat poznámky a TODO v GRID-APP-DEV.md
+
+Možné další vylepšení manuálu (nápady)
+- Diagram datových toků (Auth → Session → Firestore → Grid → Realtime update)
+- Krátký JSON příklad struktury documentu v project73-sessions (gridData, metadata)
+- Sekce „Nejčastější chyby a řešení“ (např. auth/operation-not-allowed pro Anonymous Auth)
+- Stručné checklisty pro „před commitem“ a „před deployem“
+
+FAQ (stručně)
+- Je Grid App nezávislá? Ano, běží čistě jako HTML/JS a Firebase; netřeba build.
+- Může být v samostatné složce v tomto workspace? Ano, doporučeno (apps/grid-app/).
+- Má smysl samostatné repo? Jen pokud chceš samostatné verze/CI/CD.
+
+Poznámka k nasazení (volitelně)
+- Pokud budeš nasazovat přes Firebase Hosting, je vhodné mít oddělenou public složku pro Grid App (např. apps/grid-app/public) a cílený hosting target; v opačném případě nasadíš jen diagnostiku/demá nebo celý web.
+
+Aktuální stav dokumentace
+- Tento manuál slouží jako „start here“. Detailnější roadmap/TODO a debug tipy jsou v GRID-APP-DEV.md a shrnutí stavu v GRID-SETUP-COMPLETE.md.
+
