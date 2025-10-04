@@ -1,0 +1,29 @@
+name: Sync and Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  sync-notification:
+    name: Notify about manual sync needed
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create sync reminder
+        run: |
+          echo "================================================"
+          echo "✅ DAY73-cloud pushed to GitHub successfully!"
+          echo ""
+          echo "📋 Next step: Run sync script locally"
+          echo "   cd /Users/michaldaniel73/APP73/Workspaces/Workspace7"
+          echo "   npm run sync:cloud"
+          echo "   firebase deploy --only hosting:onlineday73"
+          echo ""
+          echo "💡 TIP: Or use the automated local sync hook"
+          echo "================================================"
