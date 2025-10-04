@@ -768,9 +768,20 @@ async function uploadCardImage(cardId, blob) {
   }
 }
 
-// Initialize
-renderAIProjects();
-loadCards();
+// Initialize when Firebase is ready
+function init() {
+  if (!window.firebase || !window.firebase.db) {
+    console.log('[Dashboard] Waiting for Firebase...');
+    setTimeout(init, 100);
+    return;
+  }
+  console.log('[Dashboard] Firebase ready, initializing...');
+  renderAIProjects();
+  loadCards();
+}
+
+// Start initialization
+init();
 </script>
 
 </body>
