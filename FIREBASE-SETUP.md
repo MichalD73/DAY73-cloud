@@ -1,244 +1,257 @@
-# Firebase Setup Documentation
+# Firebase Setup - DAY73-Cloud
 
-## 🔥 Firebase Configuration
+> **Důležitá dokumentace pro řešení Firebase napojení a typických problémů**
 
-**Project:** Central-Asset-Storage
-**Project ID:** `central-asset-storage`
-**Firebase SDK Version:** v10.12.0 (modular)
-**Location:** `/shared/firebase.js`
+## 🔧 Základní Konfigurace
 
-### Config Object
+### Firebase SDK Načítání (grid-app-test.html)
+
+**KRITICKÉ POŘADÍ:**
+```html
+<!-- 1. Firebase App (vždy první!) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+
+<!-- 2. Firebase služby -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+
+<!-- 3. Config (inicializace Firebase) -->
+<script src="firebase-config.js"></script>
+
+<!-- 4. Teprve pak moduly! -->
+<script src="dashboard-view.js" type="module"></script>
+```
+
+⚠️ **Pokud změníš pořadí = Firebase nebude fungovat!**
+
+---
+
+## 🐛 Typické Problémy a Řešení
+
+### Problém 1: "Firebase not loaded" v integrované verzi
+
+**Symptom:**
+- Dashboard view se načte, ale nezobrazí karty
+- Console: `Firebase not loaded`
+
+**Příčina:**
+- Modul (např. dashboard-view.js) se spustil dřív než Firebase dokončil inicializaci
+
+**Řešení:**
+Použij `waitForFirebase()` polling metodu:
+
 ```javascript
-{
-  apiKey: 'AIzaSyDdKzUd-QVHEdHMGl3kbuAKk4p6CjgkgzQ',
-  authDomain: 'central-asset-storage.firebaseapp.com',
-  projectId: 'central-asset-storage',
-  storageBucket: 'central-asset-storage.appspot.com',
-  messagingSenderId: '907874309868',
-  appId: '1:907874309868:web:5354ee69d6212f3d9937c9'
+waitForFirebase: async function() {
+  let attempts = 0;
+  const maxAttempts = 50; // 5 sekund timeout
+
+  while (attempts < maxAttempts) {
+    if (window.firebase && window.firebase.db) {
+      console.log('[Dashboard] Firebase ready');
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+    attempts++;
+  }
+  console.error('[Dashboard] Firebase failed to load after', maxAttempts * 100, 'ms');
+}
+
+// Použití v init:
+init: async function() {
+  await this.waitForFirebase(); // VŽDY ČEKAT!
+  // ... zbytek kódu
 }
 ```
 
 ---
 
-## 📦 How to Use Firebase in ANY Module
+### Problém 2: Obrázky se neukládají v card body
 
-### 1. HTML - Load Firebase Script
+**Symptom:**
+- Paste obrázku do editoru funguje, ale po refreshi zmizí
+- Firestore error: "Document too large"
 
-**CRITICAL:** Use absolute path from project root!
+**Příčina:**
+- ContentEditable vytváří base64 data URLs které jsou příliš velké pro Firestore
 
-```html
-<!-- In DAY73-cloud/grid-app-test.html -->
-<script type="module" src="/DAY73-cloud/shared/firebase.js"></script>
-```
-
-**OR** if deploying to root:
-```html
-<script type="module" src="/shared/firebase.js"></script>
-```
-
-### 2. JavaScript - Access Firebase API
-
-Firebase is available as **`window.firebase`** object.
-
-#### ✅ CORRECT Pattern (Modular Firebase v10)
+**Řešení:**
+Upload do Firebase Storage, uložit jen URL:
 
 ```javascript
-// Check if Firebase is loaded
-if (!window.firebase || !window.firebase.db) {
-  console.error('Firebase not loaded');
-  return;
+editor.onpaste = async (e) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+
+  for (let item of items) {
+    if (item.type.indexOf('image') !== -1) {
+      e.preventDefault();
+      const blob = item.getAsFile();
+
+      // Upload do Storage
+      const { storage, ref, uploadBytes, getDownloadURL } = window.firebase;
+      const storageRef = ref(storage, `card-body-images/${cardId}-${Date.now()}.png`);
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Vložit URL místo base64
+      const img = document.createElement('img');
+      img.src = downloadURL;
+      img.style.maxWidth = '100%';
+      // ... insert do editoru
+    }
+  }
+};
+```
+
+---
+
+### Problém 3: Storage permission denied
+
+**Symptom:**
+- Console error: "User does not have permission to access 'card-body-images/'"
+
+**Příčina:**
+- Chybí Storage rules nebo nebyly deploynuty
+
+**Řešení:**
+
+1. Zkontroluj **storage.rules**:
+```
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /kanban-images/{imageId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /card-body-images/{imageId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
 }
-
-// Destructure what you need
-const { db, collection, addDoc, serverTimestamp } = window.firebase;
-
-// Use it
-await addDoc(collection(db, 'your-collection'), {
-  field: 'value',
-  createdAt: serverTimestamp()
-});
 ```
 
-#### ❌ WRONG Patterns (DO NOT USE)
-
-```javascript
-// ❌ Legacy API - doesn't work
-firebase.firestore()
-firebase.firestore().collection('...')
-
-// ❌ ES module import - won't work in inline scripts
-import { db } from './shared/firebase.js'
+2. Deploy rules:
+```bash
+firebase deploy --only storage
 ```
 
 ---
 
-## 🗂️ Available Firebase Functions
+## ✅ Kontrolní Checklist - Když něco nefunguje
 
-From `window.firebase`:
-
-### Firestore Database
-- `db` - Firestore instance
-- `collection(db, 'path')` - Get collection reference
-- `doc(db, 'path', 'id')` - Get document reference
-- `addDoc(collectionRef, data)` - Add new document
-- `setDoc(docRef, data)` - Set document (create/overwrite)
-- `getDoc(docRef)` - Get single document
-- `getDocs(queryRef)` - Get multiple documents
-- `updateDoc(docRef, data)` - Update document
-- `deleteDoc(docRef)` - Delete document
-- `onSnapshot(ref, callback)` - Real-time listener
-- `query(collectionRef, ...constraints)` - Build query
-- `where('field', 'op', value)` - Query filter
-- `orderBy('field', 'direction')` - Sort results
-- `limit(number)` - Limit results
-- `serverTimestamp()` - Server timestamp
-- `increment(number)` - Increment value
-- `writeBatch(db)` - Batch write
-
-### Storage
-- `storage` - Storage instance
-- `ref(storage, 'path')` - Get storage reference
-- `uploadBytes(ref, blob)` - Upload file
-- `uploadBytesResumable(ref, blob)` - Upload with progress
-- `getDownloadURL(ref)` - Get download URL
-- `listAll(ref)` - List files
-- `getMetadata(ref)` - Get file metadata
-- `deleteObject(ref)` - Delete file
-
-### Authentication
-- `auth` - Auth instance
-- `onAuthStateChanged(auth, callback)` - Listen to auth state
-- `signInAnonymously(auth)` - Sign in anonymously
-- `signInWithPopup(auth, provider)` - Sign in with popup
-- `signInWithRedirect(auth, provider)` - Sign in with redirect
-- `getRedirectResult(auth)` - Get redirect result
-- `signOut(auth)` - Sign out
-- `GoogleAuthProvider` - Google auth provider
-
----
-
-## 📝 Real-World Examples
-
-### Example 1: Add Document to Firestore
-
+### 1. Zkontroluj Console
 ```javascript
-const { db, collection, addDoc, serverTimestamp } = window.firebase;
-
-await addDoc(collection(db, 'kanban-cards'), {
-  title: 'Task title',
-  description: 'Task description',
-  status: 'todo',
-  createdAt: serverTimestamp()
-});
+// Měl bys vidět tyto logy:
+[Dashboard] Firebase ready
+[Dashboard] Listening to kanban cards...
+[Dashboard] Cards loaded: X
 ```
 
-### Example 2: Real-time Listener
-
-```javascript
-const { db, collection, query, orderBy, onSnapshot } = window.firebase;
-
-const cardsQuery = query(
-  collection(db, 'kanban-cards'),
-  orderBy('createdAt', 'desc')
-);
-
-onSnapshot(cardsQuery, (snapshot) => {
-  const cards = [];
-  snapshot.forEach(doc => {
-    cards.push({ id: doc.id, ...doc.data() });
-  });
-  renderCards(cards);
-});
+### 2. Zkontroluj Pořadí Scriptů
+```
+✅ firebase-app-compat.js
+✅ firebase-*-compat.js (auth, firestore, storage)
+✅ firebase-config.js
+✅ dashboard-view.js (nebo jiný modul)
 ```
 
-### Example 3: Update Document
-
+### 3. Zkontroluj window.firebase Objekt
 ```javascript
-const { db, doc, updateDoc } = window.firebase;
-
-await updateDoc(doc(db, 'kanban-cards', cardId), {
-  status: 'done'
-});
+// V console:
+console.log(window.firebase);
+// Mělo by vrátit objekt s: { app, auth, db, storage, ... }
 ```
 
-### Example 4: Upload Image to Storage
-
+### 4. Zkontroluj waitForFirebase()
 ```javascript
-const { storage, ref, uploadBytes, getDownloadURL } = window.firebase;
+// V každém modulu MUSÍ být:
+init: async function() {
+  await this.waitForFirebase(); // ← Tohle!
+  // ...
+}
+```
 
-const storageRef = ref(storage, `images/${filename}.png`);
-await uploadBytes(storageRef, blob);
-const downloadURL = await getDownloadURL(storageRef);
+### 5. Zkontroluj Storage Rules
+```bash
+# Deploy storage rules
+firebase deploy --only storage
+
+# Nebo deploy všeho
+firebase deploy
 ```
 
 ---
 
-## 🚨 Common Errors & Solutions
+## 🏗️ Architektura
 
-### Error: "Firebase not loaded"
+### Standalone verze (dashboard.html)
+- Firebase načítání inline v HTML
+- Vše funguje hned, žádný polling potřeba
+- Používá se pro standalone view bez menu
 
-**Cause:** Script not loaded or wrong path
-**Solution:** Check script tag path in HTML - must be absolute!
+### Integrated verze (grid-app-test.html?view=dashboard)
+- Firebase načtené v main HTML (grid-app-test.html)
+- dashboard-view.js MUSÍ čekat přes `waitForFirebase()`
+- Sdílí Firebase instanci s ostatními moduly
 
-```html
-<!-- ✅ CORRECT -->
-<script type="module" src="/DAY73-cloud/shared/firebase.js"></script>
+---
 
-<!-- ❌ WRONG -->
-<script type="module" src="../shared/firebase.js"></script>
+## 📦 Firebase Storage Složky
+
+```
+/kanban-images/          → Thumbnail obrázky karet
+/card-body-images/       → Obrázky v card body editoru
 ```
 
-### Error: "Expected first argument to collection() to be a CollectionReference"
+Obě složky mají veřejný read/write access (definováno v storage.rules).
 
-**Cause:** Using legacy API (`firebase.firestore().collection()`)
-**Solution:** Use modular API with `window.firebase`
+---
 
+## 🔍 Debug Tips
+
+### Zjisti jestli Firebase běží:
 ```javascript
-// ❌ WRONG
-const db = firebase.firestore();
-db.collection('cards').add({...});
-
-// ✅ CORRECT
-const { db, collection, addDoc } = window.firebase;
-await addDoc(collection(db, 'cards'), {...});
+if (window.firebase && window.firebase.db) {
+  console.log('✅ Firebase is ready');
+} else {
+  console.log('❌ Firebase NOT ready');
+}
 ```
 
-### Error: "firebase.db is not a function"
-
-**Cause:** Trying to call `db` as function
-**Solution:** `db` is an object, use with `collection(db, 'path')`
-
+### Zjisti kolik času trvá inicializace:
 ```javascript
-// ❌ WRONG
-firebase.db('cards')
+console.time('firebase-init');
+await this.waitForFirebase();
+console.timeEnd('firebase-init');
+```
 
-// ✅ CORRECT
-const { db, collection } = window.firebase;
-collection(db, 'cards')
+### Zkontroluj Firestore připojení:
+```javascript
+const { db, collection, getDocs } = window.firebase;
+const snapshot = await getDocs(collection(db, 'kanban-cards'));
+console.log('Cards in DB:', snapshot.size);
 ```
 
 ---
 
-## ✅ Checklist for New Modules
+## 📝 Poznámky pro Budoucnost
 
-When creating a new module that uses Firebase:
-
-1. ✅ Load Firebase script in HTML with **absolute path**
-2. ✅ Check `window.firebase` exists before using
-3. ✅ Destructure needed functions from `window.firebase`
-4. ✅ Use modular API (NOT legacy `firebase.firestore()`)
-5. ✅ Test in console: `console.log(window.firebase)` should show object
+1. **Vždy používej waitForFirebase()** v integrated view modulech
+2. **Nikdy neměň pořadí Firebase scriptů** v HTML
+3. **Storage rules musí být deploynuty** pro upload obrázků
+4. **Base64 NIKDY do Firestore** - vždy upload do Storage
+5. **Console.log checkpoints** pro debug Firebase ready stavu
 
 ---
 
-## 📚 Reference Links
-
-- Firebase Modular SDK Docs: https://firebase.google.com/docs/web/modular-upgrade
-- Firestore Docs: https://firebase.google.com/docs/firestore
-- Storage Docs: https://firebase.google.com/docs/storage
-
----
-
-**Last Updated:** 2025-10-04
-**Maintainer:** Claude + Michal
+Vytvořeno: 2025-10-04
+Poslední update: 2025-10-04

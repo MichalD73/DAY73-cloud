@@ -117,6 +117,15 @@ body.view-dashboard #dashboard-view {
   border-left-color: #ff9f1a;
 }
 
+.project-card.note {
+  border-left-color: #5e6c84;
+  background: #fff9e6;
+}
+
+.project-card.note:hover {
+  background: #fff3d1;
+}
+
 .project-title {
   font-weight: 600;
   color: #172b4d;
@@ -140,6 +149,11 @@ body.view-dashboard #dashboard-view {
 
 .project-status.in-progress {
   background: #ff9f1a;
+  color: white;
+}
+
+.project-status.note {
+  background: #5e6c84;
   color: white;
 }
 

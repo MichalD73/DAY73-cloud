@@ -26,6 +26,14 @@
       status: "completed",
       description: "Dashboard s AI Projects view a My Kanban board integrovaný jako view",
       links: []
+    },
+    {
+      title: "Firebase Setup Notes",
+      status: "note",
+      description: "Dokumentace Firebase napojení a troubleshooting",
+      links: [
+        { label: "📄 Přečíst Dokumentaci", url: "FIREBASE-SETUP.md" }
+      ]
     }
   ];
 
@@ -61,24 +69,30 @@
       const container = document.getElementById('aiProjectsList');
       if (!container) return;
 
-      container.innerHTML = aiProjects.map(project => `
-        <div class="project-card ${project.status}">
-          <div class="project-title">
-            ${project.title}
-            <span class="project-status ${project.status}">
-              ${project.status === 'completed' ? '✅ Hotovo' : '🔄 Probíhá'}
-            </span>
-          </div>
-          <div class="project-desc">${project.description}</div>
-          ${project.links.length > 0 ? `
-            <div class="project-links">
-              ${project.links.map(link => `
-                <a href="${link.url}" target="_blank" class="project-link">${link.label}</a>
-              `).join('')}
+      container.innerHTML = aiProjects.map(project => {
+        let statusText = '🔄 Probíhá';
+        if (project.status === 'completed') statusText = '✅ Hotovo';
+        if (project.status === 'note') statusText = '📝 Poznámka';
+
+        return `
+          <div class="project-card ${project.status}">
+            <div class="project-title">
+              ${project.title}
+              <span class="project-status ${project.status}">
+                ${statusText}
+              </span>
             </div>
-          ` : ''}
-        </div>
-      `).join('');
+            <div class="project-desc">${project.description}</div>
+            ${project.links.length > 0 ? `
+              <div class="project-links">
+                ${project.links.map(link => `
+                  <a href="${link.url}" target="_blank" class="project-link">${link.label}</a>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
     },
 
     kanbanCards: [],
