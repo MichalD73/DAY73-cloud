@@ -1087,5 +1087,17 @@ fetch(location.href.split('?')[0]).then(r=>r.text()).then(t=>console.log(t.inclu
 <script type="module" src="/DAY73/modules/mindmap/mindmap.js"></script>
 <script src="/DAY73-cloud/dashboard-view.js"></script>
 <script src="/DAY73-cloud/grid-app.js"></script>
+<!-- Card Detail Panel -->
+<div class="card-detail-overlay" id="cardDetailOverlay" onclick="closeCardDetail()"></div>
+<div class="card-detail-panel" id="cardDetailPanel">
+  <div class="card-detail-header">
+    <h3 id="cardDetailTitle">Název karty</h3>
+    <button onclick="closeCardDetail()" class="btn-close">✕</button>
+  </div>
+  <div class="card-detail-body">
+    <div id="cardDetailEditor"></div>
+  </div>
+</div>
+
 </body>
 </html>

@@ -122,6 +122,7 @@
                draggable="true"
                tabindex="0"
                data-id="${card.id}"
+               ondblclick="DashboardView.openCardDetail('${card.id}')"
                ondragstart="DashboardView.handleDragStart(event)"
                ondragend="DashboardView.handleDragEnd(event)"
                onkeydown="DashboardView.handleCardKeydown(event, '${card.id}')">
@@ -339,6 +340,123 @@
         console.error('[Dashboard] Error archiving card:', error);
         alert('Chyba při archivaci karty: ' + error.message);
       }
+    },
+
+    // Card Detail Panel
+    currentDetailCardId: null,
+
+    openCardDetail: function(cardId) {
+      const card = this.kanbanCards.find(c => c.id === cardId);
+      if (!card) return;
+
+      this.currentDetailCardId = cardId;
+
+      // Set title
+      document.getElementById('cardDetailTitle').textContent = card.title;
+
+      // Set editor content
+      const editor = document.getElementById('cardDetailEditor');
+      editor.contentEditable = 'true';
+      editor.innerHTML = card.body || '<p>Začni psát...</p>';
+
+      // Show panel
+      document.getElementById('cardDetailOverlay').classList.add('active');
+      document.getElementById('cardDetailPanel').classList.add('active');
+
+      // Focus editor
+      setTimeout(() => editor.focus(), 300);
+
+      // Auto-save on input
+      editor.oninput = this.debounce(() => this.saveCardBody(cardId), 1000);
+
+      // Handle image paste in editor
+      editor.onpaste = async (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let item of items) {
+          if (item.type.indexOf('image') !== -1) {
+            e.preventDefault();
+            const blob = item.getAsFile();
+
+            // Upload image to Firebase Storage
+            const indicator = document.getElementById('uploadIndicator');
+            if (indicator) indicator.classList.add('active');
+
+            try {
+              const { storage, ref, uploadBytes, getDownloadURL } = window.firebase;
+              const storageRef = ref(storage, `card-body-images/${cardId}-${Date.now()}.png`);
+              await uploadBytes(storageRef, blob);
+              const downloadURL = await getDownloadURL(storageRef);
+
+              // Insert image with URL instead of base64
+              const img = document.createElement('img');
+              img.src = downloadURL;
+              img.style.maxWidth = '100%';
+              img.style.height = 'auto';
+              img.style.margin = '0.5rem 0';
+
+              // Insert at cursor position
+              const selection = window.getSelection();
+              if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(img);
+                range.collapse(false);
+              } else {
+                editor.appendChild(img);
+              }
+
+              // Save immediately after image insert
+              await this.saveCardBody(cardId);
+            } catch (error) {
+              console.error('[Dashboard] Error uploading image:', error);
+              alert('Chyba při nahrávání obrázku: ' + error.message);
+            } finally {
+              if (indicator) indicator.classList.remove('active');
+            }
+            break;
+          }
+        }
+      };
+    },
+
+    closeCardDetail: function() {
+      // Save before closing
+      if (this.currentDetailCardId) {
+        this.saveCardBody(this.currentDetailCardId);
+      }
+
+      document.getElementById('cardDetailOverlay').classList.remove('active');
+      document.getElementById('cardDetailPanel').classList.remove('active');
+      this.currentDetailCardId = null;
+    },
+
+    saveCardBody: async function(cardId) {
+      const editor = document.getElementById('cardDetailEditor');
+      const body = editor.innerHTML;
+
+      try {
+        const { db, doc, updateDoc } = window.firebase;
+        await updateDoc(doc(db, 'kanban-cards', cardId), {
+          body: body
+        });
+        console.log('[Dashboard] Card body saved');
+      } catch (error) {
+        console.error('[Dashboard] Error saving card body:', error);
+      }
+    },
+
+    debounce: function(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
     }
   };
 
@@ -346,4 +464,5 @@
   window.showAddCardForm = (status) => window.DashboardView.showAddCardForm(status);
   window.addCard = (status) => window.DashboardView.addCard(status);
   window.cancelCardForm = () => window.DashboardView.cancelCardForm();
+  window.closeCardDetail = () => window.DashboardView.closeCardDetail();
 })();
