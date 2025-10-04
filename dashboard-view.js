@@ -33,8 +33,28 @@
     init: async function() {
       console.log('[Dashboard] Initializing...');
       this.renderAIProjects();
+
+      // Wait for Firebase to be ready
+      await this.waitForFirebase();
+
       await this.loadKanbanCards();
       this.setupPasteHandler();
+    },
+
+    waitForFirebase: async function() {
+      let attempts = 0;
+      const maxAttempts = 50;
+
+      while (attempts < maxAttempts) {
+        if (window.firebase && window.firebase.db) {
+          console.log('[Dashboard] Firebase ready');
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+
+      console.error('[Dashboard] Firebase failed to load after', maxAttempts * 100, 'ms');
     },
 
     renderAIProjects: function() {
