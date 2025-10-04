@@ -66,13 +66,15 @@
 
     loadKanbanCards: async function() {
       try {
-        if (!window.firebase || !firebase.firestore) {
+        if (!window.firebase || !window.firebase.db) {
           console.error('[Dashboard] Firebase not loaded');
           return;
         }
 
-        const db = firebase.firestore();
-        db.collection('kanban-cards').orderBy('createdAt', 'desc').onSnapshot((snapshot) => {
+        const { db, collection, query, orderBy, onSnapshot } = window.firebase;
+        const cardsQuery = query(collection(db, 'kanban-cards'), orderBy('createdAt', 'desc'));
+
+        onSnapshot(cardsQuery, (snapshot) => {
           this.kanbanCards = [];
           snapshot.forEach(doc => {
             this.kanbanCards.push({ id: doc.id, ...doc.data() });
@@ -163,13 +165,13 @@
       }
 
       try {
-        const db = firebase.firestore();
-        await db.collection('kanban-cards').add({
+        const { db, collection, addDoc, serverTimestamp } = window.firebase;
+        await addDoc(collection(db, 'kanban-cards'), {
           title,
           description,
           status,
           imageUrl: null,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          createdAt: serverTimestamp()
         });
 
         this.cancelCardForm();
@@ -224,8 +226,8 @@
       const cardId = this.draggedCard.dataset.id;
 
       try {
-        const db = firebase.firestore();
-        await db.collection('kanban-cards').doc(cardId).update({
+        const { db, doc, updateDoc } = window.firebase;
+        await updateDoc(doc(db, 'kanban-cards', cardId), {
           status: newStatus
         });
       } catch (error) {
@@ -266,14 +268,13 @@
       }
 
       try {
-        const storage = firebase.storage();
-        const storageRef = storage.ref(`kanban-images/${cardId}-${Date.now()}.png`);
+        const { storage, db, doc, updateDoc, ref, uploadBytes, getDownloadURL } = window.firebase;
+        const storageRef = ref(storage, `kanban-images/${cardId}-${Date.now()}.png`);
 
-        await storageRef.put(blob);
-        const downloadURL = await storageRef.getDownloadURL();
+        await uploadBytes(storageRef, blob);
+        const downloadURL = await getDownloadURL(storageRef);
 
-        const db = firebase.firestore();
-        await db.collection('kanban-cards').doc(cardId).update({
+        await updateDoc(doc(db, 'kanban-cards', cardId), {
           imageUrl: downloadURL
         });
 
