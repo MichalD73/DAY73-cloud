@@ -50,6 +50,40 @@
       links: [
         { label: "📄 Přečíst Dokumentaci", url: "DASHBOARD-ARCHITECTURE.md" }
       ]
+    },
+    {
+      title: "Notes Refactoring",
+      status: "completed",
+      description: "Poznámky 2 - refaktoring na single source of truth + standalone s Auth UI",
+      links: [
+        { label: "📄 Dokumentace", url: "NOTES-REFACTORING.md" },
+        { label: "🔗 Standalone", url: "https://onlineday73.web.app/DAY73-cloud/notes.html" },
+        { label: "🔗 Integrované", url: "https://onlineday73.web.app/DAY73-cloud/grid-app-test.html?view=notes" }
+      ]
+    },
+    {
+      title: "Komunikační Pattern",
+      status: "note",
+      description: "Standardizovaný formát pro hlášení dokončené práce - strukturované, proklikové odkazy, jasné informace",
+      links: [
+        { label: "📄 Přečíst Pattern", url: "COMMUNICATION-PATTERN.md" }
+      ]
+    },
+    {
+      title: "Archivační Pattern",
+      status: "note",
+      description: "Bezpečná archivace starého kódu před smazáním - _archive/ složka, README.txt, kdy smazat, jak obnovit",
+      links: [
+        { label: "📄 Přečíst Pattern", url: "ARCHIVE-PATTERN.md" }
+      ]
+    },
+    {
+      title: "Git Workflow & Doporučení",
+      status: "note",
+      description: "Současný Git/GitHub backup setup, workflow dokumentace, tiered doporučení na vylepšení (Level 1-3)",
+      links: [
+        { label: "📄 Přečíst Dokumentaci", url: "GIT-WORKFLOW.md" }
+      ]
     }
   ];
 
