@@ -493,25 +493,9 @@
 </div>
 
 <!-- Firebase SDK -->
-<script type="module" src="./shared/firebase.js"></script>
+<script type="module" src="/DAY73-cloud/shared/firebase.js"></script>
 
-<script type="module">
-import { db, storage } from './shared/firebase.js';
-import {
-  collection,
-  addDoc,
-  getDocs,
-  updateDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  serverTimestamp
-} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL
-} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js';
+<script>
 
 // AI Projects data (hardcoded for now, will be updated by AI in conversations)
 const aiProjects = [
@@ -569,6 +553,12 @@ let currentEditingCard = null;
 
 // Load cards from Firestore
 async function loadCards() {
+  if (!window.firebase || !window.firebase.db) {
+    console.error('[Dashboard] Firebase not loaded');
+    return;
+  }
+
+  const { db, collection, onSnapshot } = window.firebase;
   const cardsRef = collection(db, 'kanban-cards');
 
   onSnapshot(cardsRef, (snapshot) => {
@@ -656,6 +646,7 @@ window.addCard = async function(status) {
   }
 
   try {
+    const { db, collection, addDoc, serverTimestamp } = window.firebase;
     await addDoc(collection(db, 'kanban-cards'), {
       title,
       description,
@@ -718,6 +709,7 @@ async function handleDrop(e) {
   const cardId = draggedCard.dataset.id;
 
   try {
+    const { db, doc, updateDoc } = window.firebase;
     await updateDoc(doc(db, 'kanban-cards', cardId), {
       status: newStatus
     });
@@ -758,6 +750,7 @@ async function uploadCardImage(cardId, blob) {
   indicator.classList.add('active');
 
   try {
+    const { storage, db, doc, updateDoc, ref, uploadBytes, getDownloadURL } = window.firebase;
     const storageRef = ref(storage, `kanban-images/${cardId}-${Date.now()}.png`);
     await uploadBytes(storageRef, blob);
     const downloadURL = await getDownloadURL(storageRef);
