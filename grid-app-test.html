@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Project_73 Cloud - Grid Development [v2.0]</title>
-<!-- Revision marker (cloud version) -->
-<meta name="p73-revision" content="cloud-version-automated-workflow" />
+<title>Project_73 - Grid Development [v2.0]</title>
+<!-- Revision marker (public copy) -->
+<meta name="p73-revision" content="public-rev-fix-2b-{{TIMESTAMP}}" />
 <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
 <link rel="apple-touch-icon" href="../favicon.svg" />
 <script src="https://cdn.tailwindcss.com"></script>
@@ -17,6 +17,30 @@
 </script>
 
 <link rel="stylesheet" href="/DAY73/grid-app.css" />
+<link rel="stylesheet" href="/DAY73/notes-app.css" />
+<link rel="stylesheet" href="/DAY73/modules/banners/banners.css" />
+<link rel="stylesheet" href="/DAY73/modules/mobile/mobile.css" />
+<link rel="stylesheet" href="/DAY73/modules/pokus/pokus.css" />
+<link rel="stylesheet" href="/DAY73/modules/mindmap/mindmap.css" />
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css" integrity="sha384-cPa8kzsYWhqpAfWOLWYIw3V0BhPi/m3lrd8tBTPxr2NrYCHRVZ7xy1cEoRGOM/03" crossorigin="anonymous" />
+<script>
+ (function redirectMobilePreview(){
+   try {
+     const ua = navigator.userAgent || '';
+     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+     const host = location.hostname || '';
+     const alreadyInLab = location.pathname.includes('/DAY73/sandbox/notes-mobile-lab/');
+     const forcedDesktop = location.search.includes('desktop=1');
+     if (isMobile && host.includes('--mobil-preview') && !alreadyInLab && !forcedDesktop) {
+       const target = '/DAY73/sandbox/notes-mobile-lab/index.html';
+       const hash = location.hash || '';
+       location.replace(`${target}${hash}`);
+     }
+   } catch (error) {
+     console.warn('[P73] redirectMobilePreview failed:', error);
+   }
+ })();
+</script>
 </head>
 <body>
 <div id="auth-gate" class="auth-gate hidden" role="dialog" aria-modal="true" aria-labelledby="auth-gate-title">
@@ -37,7 +61,55 @@
  <nav class="p73-topbar-nav">
    <a href="?view=grid" data-toplink="grid" class="p73-topbar-link">Grid</a>
   <a href="?view=goal-canvas" data-toplink="goal-canvas" class="p73-topbar-link">Goal Canvas</a>
-   <a href="?view=elektrocz" data-toplink="elektrocz" class="p73-topbar-link">elektrocz.com</a>
+  <a href="?view=elektrocz" data-toplink="elektrocz" class="p73-topbar-link">elektrocz.com</a>
+  <a href="?view=notes" data-toplink="notes" class="p73-topbar-link">Poznámky</a>
+  <a href="/DAY73/notes-lab.html" data-toplink="notes-lab" class="p73-topbar-link" target="_blank" rel="noopener">Notes Lab</a>
+  <a href="?view=manifest" data-toplink="manifest" class="p73-topbar-link">Struktura</a>
+  <a href="?view=mindmap" data-toplink="mindmap" class="p73-topbar-link">Mindmap</a>
+  <a href="?view=pokus" data-toplink="pokus" class="p73-topbar-link">POKUS</a>
+  <a href="?view=mobile" data-toplink="mobile" class="p73-topbar-link">Mobil</a>
+  <a href="?view=banners" data-toplink="banners" class="p73-topbar-link">Banery</a>
+  <div class="p73-topbar-dropdown" data-dropdown="pokus2">
+    <a href="?view=pokus2" data-toplink="pokus2" class="p73-topbar-link p73-topbar-link--dropdown" aria-haspopup="true" aria-expanded="false">POKUS 2</a>
+    <div class="p73-dropdown-panel" role="menu" hidden>
+      <header class="p73-dropdown-header">
+        <div>
+          <div class="p73-dropdown-eyebrow">Modulové experimenty</div>
+          <h3>POKUS 2 workspace</h3>
+          <p>Vyzkoušej nové rozložení bez ovlivnění hlavní aplikace.</p>
+        </div>
+        <a href="?view=pokus2" class="p73-dropdown-primary">Otevřít POKUS 2</a>
+      </header>
+      <div class="p73-dropdown-grid">
+        <div class="p73-dropdown-card">
+          <h4>Rychlé akce</h4>
+          <ul>
+            <li><a href="?view=pokus2#grid">Přepnout na mřížku</a></li>
+            <li><a href="?view=pokus2&panel=notes">Poznámky k experimentu</a></li>
+            <li><a href="?view=pokus2&panel=assets">Nahrát asset</a></li>
+          </ul>
+        </div>
+        <div class="p73-dropdown-card">
+          <h4>Co testujeme</h4>
+          <p>Dropdown navigace inspirovaná Amazonem. Sleduj, jak se chová na různých
+            velikostech obrazovky a při přihlášení.</p>
+        </div>
+        <div class="p73-dropdown-card">
+          <h4>Další moduly</h4>
+          <ul>
+            <li><a href="?view=pokus">POKUS 1</a></li>
+            <li><a href="?view=pokus3">POKUS 3</a></li>
+            <li><a href="?view=architekt">Architekt</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <a href="?view=pokus3" data-toplink="pokus3" class="p73-topbar-link">POKUS 3</a>
+   <a href="?view=pokus4" data-toplink="pokus4" class="p73-topbar-link">POKUS 4</a>
+   <a href="?view=pokus5" data-toplink="pokus5" class="p73-topbar-link">POKUS 5</a>
+   <a href="?view=pokus6" data-toplink="pokus6" class="p73-topbar-link">POKUS 6</a>
+  <a href="?view=architekt" data-toplink="architekt" class="p73-topbar-link">Architekt</a>
    <a href="?view=calendar#calendar" data-toplink="calendar" class="p73-topbar-link">Kalendář</a>
    <a href="?view=assets" data-toplink="assets" class="p73-topbar-link">Assets</a>
    <a href="?view=gallery" data-toplink="gallery" class="p73-topbar-link">Galerie</a>
@@ -57,7 +129,20 @@
      const anchorOrder = [
        { view:'grid', label:'Grid' },
       { view:'goal-canvas', label:'Goal Canvas' },
-       { view:'elektrocz', label:'elektrocz.com' },
+      { view:'elektrocz', label:'elektrocz.com' },
+      { view:'notes', label:'Poznámky' },
+      { view:'notes-lab', label:'Notes Lab', href:'/DAY73/notes-lab.html' },
+      { view:'manifest', label:'Struktura' },
+      { view:'mindmap', label:'Mindmap' },
+      { view:'pokus', label:'POKUS' },
+      { view:'mobile', label:'Mobil' },
+      { view:'banners', label:'Banery' },
+      { view:'pokus2', label:'POKUS 2' },
+      { view:'pokus3', label:'POKUS 3' },
+      { view:'pokus4', label:'POKUS 4' },
+      { view:'pokus5', label:'POKUS 5' },
+      { view:'pokus6', label:'POKUS 6' },
+      { view:'architekt', label:'Architekt' },
        { view:'calendar', label:'Kalendář', href:'?view=calendar#calendar' },
        { view:'assets', label:'Assets' },
        { view:'gallery', label:'Galerie' },
@@ -80,6 +165,66 @@
    }
  })();
 </script>
+<script>
+ (function initPokus2Dropdown(){
+   const dropdown = document.querySelector('[data-dropdown="pokus2"]');
+   if (!dropdown) return;
+
+   const trigger = dropdown.querySelector('[data-toplink="pokus2"]');
+   const panel = dropdown.querySelector('.p73-dropdown-panel');
+   if (!trigger || !panel) return;
+
+   let hideTimer = null;
+
+   function openPanel(){
+     clearTimeout(hideTimer);
+     dropdown.classList.add('open');
+     panel.hidden = false;
+     trigger.setAttribute('aria-expanded', 'true');
+   }
+
+   function closePanel(){
+     dropdown.classList.remove('open');
+     panel.hidden = true;
+     trigger.setAttribute('aria-expanded', 'false');
+   }
+
+   function scheduleClose(){
+     clearTimeout(hideTimer);
+     hideTimer = setTimeout(closePanel, 120);
+   }
+
+   dropdown.addEventListener('pointerenter', () => {
+     clearTimeout(hideTimer);
+     openPanel();
+   });
+
+   dropdown.addEventListener('pointerleave', scheduleClose);
+
+   trigger.addEventListener('click', (event) => {
+     event.preventDefault();
+     if (dropdown.classList.contains('open')) {
+       closePanel();
+     } else {
+       openPanel();
+     }
+   });
+
+   trigger.addEventListener('focus', openPanel);
+   trigger.addEventListener('blur', scheduleClose);
+   panel.addEventListener('focusin', () => {
+     clearTimeout(hideTimer);
+     openPanel();
+   });
+   panel.addEventListener('focusout', scheduleClose);
+
+   document.addEventListener('click', (event) => {
+     if (!dropdown.contains(event.target)) {
+       closePanel();
+     }
+   });
+ })();
+</script>
 <div id="workspace-toolbar" class="workspace-toolbar" hidden>
   <div class="workspace-toolbar-left">
     <span id="workspace-toolbar-module" class="workspace-toolbar-module">Workspace</span>
@@ -97,6 +242,13 @@
       <span id="workspace-zoom-label" class="workspace-toolbar-zoom-label">100%</span>
       <button type="button" id="workspace-zoom-in" aria-label="Přiblížit">＋</button>
     </div>
+    <button id="architekt-copy-open" type="button" class="workspace-toolbar-button workspace-toolbar-button--icon" hidden aria-haspopup="dialog" aria-controls="architekt-copy-panel" title="Kopírovat obrázky">
+      <span class="sr-only">Kopírovat obrázky</span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="7" width="13" height="13" rx="2"></rect>
+        <rect x="8" y="4" width="13" height="13" rx="2"></rect>
+      </svg>
+    </button>
     <div id="workspace-toolbar-setups" class="workspace-toolbar-setups" hidden>
       <label for="workspace-setup-select" class="sr-only">Sestavy</label>
       <select id="workspace-setup-select" class="workspace-toolbar-select"></select>
@@ -195,12 +347,14 @@
  </div>
 <div class="detail-section"><div class="detail-preview" id="box-preview"></div></div>
 <div class="detail-section">
-  <label for="box-title-input" class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nadpis boxu</label>
-  <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-    <input id="box-title-input" type="text" class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="Přidej nadpis (volitelné)" />
-    <button id="box-title-save" type="button" class="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-600">Uložit nadpis</button>
+  <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Obsah boxu (4 řádky)</label>
+  <div id="box-multi-line-editor" class="mt-2 flex flex-col gap-2">
+    <!-- Textarea pole budou dynamicky vložena zde -->
   </div>
-  <p id="box-title-feedback" class="mt-1 text-xs text-gray-400" hidden></p>
+  <div class="mt-2 flex justify-end">
+      <button id="box-multi-line-save" type="button" class="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-600">Uložit obsah</button>
+  </div>
+  <p id="box-multi-line-feedback" class="mt-1 text-xs text-gray-400" hidden></p>
 </div>
 <div class="detail-section">
   <h3 class="font-medium mb-2">Barva pozadí</h3>
@@ -329,6 +483,55 @@ Další odkaz: https://example.com/page"></textarea>
    </div>
  </div>
 </div>
+<div id="mindmap-view" class="mindmap-view" hidden>
+  <div class="mindmap-shell">
+    <div class="mindmap-toolbar" role="toolbar" aria-label="Mindmap nástroje">
+      <div class="mindmap-toolbar-left">
+        <button id="mindmap-add-root" type="button" class="mindmap-btn mindmap-btn-primary">+ Nové téma</button>
+        <button id="mindmap-add-child" type="button" class="mindmap-btn" disabled>+ Podtéma</button>
+        <button id="mindmap-center" type="button" class="mindmap-btn">Centrovat</button>
+      </div>
+      <div class="mindmap-toolbar-right">
+        <button id="mindmap-zoom-out" type="button" class="mindmap-btn" aria-label="Oddálit">−</button>
+        <span id="mindmap-zoom-label" class="mindmap-zoom-label">100%</span>
+        <button id="mindmap-zoom-in" type="button" class="mindmap-btn" aria-label="Přiblížit">＋</button>
+      </div>
+    </div>
+    <div class="mindmap-main">
+      <div class="mindmap-stage" id="mindmap-stage" tabindex="0" aria-label="Mindmap plátno">
+        <div class="mindmap-canvas" id="mindmap-canvas">
+          <div class="mindmap-zoom-layer" id="mindmap-zoom-layer">
+            <svg id="mindmap-links" class="mindmap-links" viewBox="0 0 5000 5000" preserveAspectRatio="xMidYMid meet"></svg>
+            <div id="mindmap-nodes" class="mindmap-nodes"></div>
+          </div>
+        </div>
+        <div id="mindmap-empty" class="mindmap-empty">
+          <h3>Začni tvořit myšlenkovou mapu</h3>
+          <p>Přidej první téma pomocí tlačítka nahoře nebo dvojitým kliknutím do plátna.</p>
+        </div>
+      </div>
+      <aside class="mindmap-sidebar" id="mindmap-sidebar" aria-label="Detail vybraného tématu">
+        <div class="mindmap-sidebar-header">
+          <h2 id="mindmap-detail-heading">Vyber téma</h2>
+          <button id="mindmap-delete" type="button" class="mindmap-btn mindmap-btn-danger" disabled>🗑 Smazat</button>
+        </div>
+        <div class="mindmap-field">
+          <label for="mindmap-title-input">Nadpis</label>
+          <input id="mindmap-title-input" type="text" placeholder="Název tématu..." />
+        </div>
+        <div class="mindmap-field">
+          <label for="mindmap-content-input">Poznámky</label>
+          <textarea id="mindmap-content-input" rows="6" placeholder="Detailní popis, úkoly..."></textarea>
+        </div>
+        <div class="mindmap-field">
+          <label>Barva</label>
+          <div id="mindmap-color-grid" class="mindmap-color-grid" role="radiogroup" aria-label="Barvy tématu"></div>
+        </div>
+        <div class="mindmap-meta" id="mindmap-meta"></div>
+      </aside>
+    </div>
+  </div>
+</div>
 <div id="snippet-library-view" class="snippet-view-wrapper">
  <div class="snippet-header">
    <h2>🧠 Knihovna kódů</h2>
@@ -399,6 +602,286 @@ Další odkaz: https://example.com/page"></textarea>
  </div>
 </div>
 
+<div id="architekt-copy-panel" class="architekt-copy-backdrop" hidden>
+  <div class="architekt-copy-dialog" role="dialog" aria-modal="true" aria-labelledby="architekt-copy-title">
+    <div class="architekt-copy-header">
+      <h3 id="architekt-copy-title">Kopírovat obrázky</h3>
+      <button type="button" id="architekt-copy-close" class="architekt-copy-close" aria-label="Zavřít panel">×</button>
+    </div>
+    <div class="architekt-copy-body">
+      <p id="architekt-copy-empty" class="architekt-copy-empty" hidden>Aktuálně není žádný box s vloženým obrázkem.</p>
+      <div id="architekt-copy-grid" class="architekt-copy-grid" role="list"></div>
+    </div>
+    <div class="architekt-copy-footer">
+      <label class="architekt-copy-select-all">
+        <input type="checkbox" id="architekt-copy-select-all" />
+        <span>Vybrat vše</span>
+      </label>
+      <div class="architekt-copy-actions">
+        <button type="button" id="architekt-copy-copy" class="architekt-copy-action architekt-copy-action--primary" disabled>Kopírovat</button>
+        <button type="button" id="architekt-copy-cancel" class="architekt-copy-action">Zavřít</button>
+      </div>
+    </div>
+    <div id="architekt-copy-feedback" class="architekt-copy-feedback" role="status" aria-live="polite"></div>
+  </div>
+</div>
+<div id="notes-app" hidden>
+  <div class="notes-app" role="application" aria-label="Poznámky Project_73">
+    <aside class="notes-pane notes-pane--folders" aria-label="Složky poznámek">
+      <div class="notes-pane__header">
+        <div class="notes-pane__brand">
+          <span class="notes-pane__brand-title">iCloud</span>
+          <div class="notes-pane__brand-actions">
+            <button id="notes-folders-toggle" type="button" class="notes-link notes-link--ghost" aria-expanded="true" title="Skrýt panel složek">Schovat složky</button>
+            <button id="notes-folder-add" type="button" class="notes-link notes-link--new">+ Nová složka</button>
+          </div>
+        </div>
+      </div>
+      <nav id="notes-folder-tree" class="notes-folder-tree" role="tree" aria-label="Strom složek"></nav>
+    </aside>
+
+    <section class="notes-pane notes-pane--list" aria-label="Seznam poznámek">
+      <header class="notes-list-header">
+        <div class="notes-list-header__titles">
+          <h1 id="notes-current-folder-name" class="notes-list-title">Poznámky</h1>
+          <p class="notes-list-subtitle"><span id="notes-count">0</span> poznámek</p>
+        </div>
+        <div class="notes-list-header__actions">
+          <button id="notes-folders-toggle-inline" type="button" class="notes-folders-toggle-inline" aria-expanded="true" title="Schovat panel složek">Schovat složky</button>
+          <button id="notes-compact-toggle" type="button" class="notes-icon-btn notes-icon-btn--ghost" title="Přepnout kompaktní zobrazení" aria-pressed="false">
+            <span aria-hidden="true">☰</span>
+            <span class="sr-only">Přepnout kompaktní režim</span>
+          </button>
+          <button id="notes-layout-toggle" type="button" class="notes-icon-btn notes-icon-btn--ghost" title="Prohodit panel poznámek" aria-pressed="false">
+            <span aria-hidden="true">⇆</span>
+            <span class="sr-only">Prohodit panel poznámek</span>
+          </button>
+          <button id="notes-new" type="button" class="notes-icon-btn notes-icon-btn--primary" title="Nová poznámka" aria-label="Nová poznámka">
+            <span aria-hidden="true">＋</span>
+          </button>
+        </div>
+      </header>
+      <div id="notes-status" class="notes-status" role="status" aria-live="polite"></div>
+      <div id="notes-locked" class="notes-empty notes-empty--muted" hidden>
+        <strong>Přihlášení vyžadováno.</strong>
+        <p>Poznámky jsou navázané na tvůj účet, přihlas se prosím přes Google.</p>
+      </div>
+      <div id="notes-empty" class="notes-empty" hidden>
+        <strong>Zatím žádné poznámky.</strong>
+        <p>Zapiš si první nápad a vrať se k němu později.</p>
+      </div>
+      <ul id="notes-list" class="notes-list" role="listbox" aria-label="Poznámky"></ul>
+    </section>
+
+    <section class="notes-pane notes-pane--editor" aria-label="Editor poznámky">
+      <div id="notes-editor" class="notes-editor" hidden>
+        <header class="notes-editor-header">
+          <div class="notes-editor-heading">
+            <h2>Detail poznámky</h2>
+            <div class="notes-meta-wrapper">
+              <button id="notes-meta-toggle" type="button" class="notes-info-pull" aria-haspopup="true" aria-expanded="false" aria-controls="notes-meta-popover" title="Detaily poznámky">
+                <span aria-hidden="true">ℹ</span>
+                <span>Informace</span>
+              </button>
+              <div id="notes-meta-popover" class="notes-meta-info" role="dialog" hidden>
+                <div id="notes-detail-meta" class="notes-meta-info__content"></div>
+                <div id="notes-meta-empty" class="notes-meta-empty">Detaily budou dostupné po uložení.</div>
+              </div>
+            </div>
+          </div>
+          <div class="notes-editor-actions">
+            <button id="notes-delete" type="button" class="notes-toolbar-delete" hidden title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
+          </div>
+        </header>
+        <div id="notes-editor-surface" class="notes-editor-surface" aria-live="polite"></div>
+        <form id="notes-form" class="notes-editor-form" novalidate>
+          <div class="notes-editor-actions-bar">
+            <button type="submit" id="notes-save" class="notes-btn-primary">Uložit poznámku</button>
+            <button type="button" id="notes-cancel" class="notes-btn-secondary" hidden>Zrušit</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="banners-view" class="banners-view-wrapper" hidden>
+  <div class="banners-content">
+    <div class="w-full flex items-center justify-center bg-white p-4 rounded-2xl shadow-lg">
+      <div class="canvas-container" data-role="banners-main-canvas">
+        <canvas id="bannerCanvas"></canvas>
+      </div>
+    </div>
+
+    <div id="compareContainer" class="banner-compare w-full hidden items-center justify-center bg-white p-4 rounded-2xl shadow-lg">
+      <div class="canvas-container" data-role="banners-compare-canvas">
+        <img id="compareImage" src="" alt="Vzorový banner" class="w-full h-full object-contain rounded-lg">
+      </div>
+    </div>
+
+    <div class="w-full bg-white p-6 rounded-2xl shadow-lg">
+      <div class="border-b border-gray-200 mb-6">
+        <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+          <button id="tab-settings-btn" class="tab-button active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            Nastavení
+          </button>
+          <button id="tab-manual-btn" class="tab-button text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            Manuál
+          </button>
+        </nav>
+      </div>
+
+      <div id="tab-settings-content" class="tab-content active">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <h2 class="text-2xl font-bold text-gray-800">Nastavení Banneru</h2>
+          <div class="relative">
+            <button id="toggleCompareBtn" title="Zobrazit/skrýt vzor" class="text-gray-400 hover:text-indigo-600 transition p-2 rounded-full hover:bg-gray-100">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+            <div id="compareError" class="banners-alert absolute top-full right-0 whitespace-nowrap pointer-events-none transition-opacity duration-300 opacity-0"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
+          <div class="space-y-6">
+            <div>
+              <label for="logoImage" class="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+              <input type="file" id="logoImage" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+            </div>
+            <div>
+              <label for="productImageURL" class="block text-sm font-medium text-gray-700 mb-1">Produktový obrázek URL (vpravo)</label>
+              <input type="text" id="productImageURL" value="https://i.elektrocz.com/kampan-slider/data/1753862539.jpg" class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+              <label for="compareImageInput" class="block text-sm font-medium text-gray-700 mb-1">Vzorový banner (pro porovnání)</label>
+              <input type="file" id="compareImageInput" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+            </div>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label for="headline1" class="block text-sm font-medium text-gray-700 mb-1">Nadpis 1. řádek</label>
+              <input type="text" id="headline1" value="„Fryerka“ zdarma" class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+              <label for="headline2" class="block text-sm font-medium text-gray-700 mb-1">Nadpis 2. řádek</label>
+              <input type="text" id="headline2" value="k indukční desce*" class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+              <label for="ctaText" class="block text-sm font-medium text-gray-700 mb-1">Text tlačítka</label>
+              <input type="text" id="ctaText" value="To chci" class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+              <label for="sloganText" class="block text-sm font-medium text-gray-700 mb-1">Slogan (nepovinné)</label>
+              <input type="text" id="sloganText" value="Stvořeno pro život" class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label for="brandColor" class="block text-sm font-medium text-gray-700 mb-1">Barva tlačítka</label>
+              <input type="color" id="brandColor" value="#007BC0" class="w-full h-10 p-1 border border-gray-300 rounded-lg cursor-pointer">
+            </div>
+            <div class="grid grid-cols-2 gap-4 pt-2 border-t">
+              <div>
+                <label for="canvasWidth" class="block text-sm font-medium text-gray-700 mb-1">Šířka (px)</label>
+                <input type="number" id="canvasWidth" value="2600" disabled class="w-full px-3 py-2 border border-gray-200 bg-gray-100 rounded-lg shadow-sm">
+              </div>
+              <div>
+                <label for="canvasHeight" class="block text-sm font-medium text-gray-700 mb-1">Výška (px)</label>
+                <input type="number" id="canvasHeight" value="674" disabled class="w-full px-3 py-2 border border-gray-200 bg-gray-100 rounded-lg shadow-sm">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mobile-section">
+          <div class="mobile-section-header">
+            <h3>Vzory bannerů</h3>
+            <p>Ulož hotové bannery jako referenci a jedním klikem je zobraz vedle aktuálního návrhu.</p>
+          </div>
+          <div>
+            <label for="referenceBannerUpload" class="block text-sm font-medium text-gray-700 mb-1">Nahrát nový vzor</label>
+            <input type="file" id="referenceBannerUpload" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+            <div id="referenceUploadProgress" class="mobile-progress" data-active="false"><div></div></div>
+          </div>
+          <div id="referenceSamplesEmpty" class="mobile-sample-empty" hidden>Žádné vzorové bannery zatím nejsou uložené.</div>
+          <div id="referenceSamples" class="mobile-samples-grid"></div>
+        </div>
+
+        <div class="mobile-section">
+          <h3 class="text-xl font-bold text-gray-800 mb-4">Samolepky</h3>
+          <div>
+            <label for="stickerUpload" class="block text-sm font-medium text-gray-700 mb-1">Nahrát novou samolepku</label>
+            <input type="file" id="stickerUpload" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+            <div id="stickerUploadProgress" class="w-full bg-gray-200 rounded-full h-2.5 mt-2 hidden"><div class="bg-blue-600 h-2.5 rounded-full" style="width:0%"></div></div>
+          </div>
+          <div id="stickerGallery" class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 mt-4 p-2 border rounded-lg bg-gray-50"></div>
+        </div>
+
+        <div class="mobile-section">
+          <h3 class="text-xl font-bold text-gray-800 mb-4">Šablony</h3>
+          <div class="flex flex-col md:flex-row md:items-center md:space-x-2 space-y-2 md:space-y-0 mb-4">
+            <input type="text" id="templateName" placeholder="Název šablony..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            <button id="saveTemplateBtn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition">Uložit</button>
+          </div>
+          <div id="templateList" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2"></div>
+        </div>
+
+        <div class="mt-8">
+          <button id="downloadBtn" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">
+            Stáhnout Banner
+          </button>
+        </div>
+      </div>
+
+      <div id="tab-manual-content" class="tab-content">
+        <div class="prose max-w-none">
+          <h2>Technický manuál</h2>
+          <p>Tato aplikace je napojena na projekt ve službě Firebase. Využívá dvě hlavní služby: <strong>Firestore Database</strong> pro ukládání strukturovaných dat a <strong>Cloud Storage</strong> pro ukládání souborů (obrázků samolepek).</p>
+          <h3>Detaily připojení</h3>
+          <ul>
+            <li><strong>Project ID:</strong> <code>central-asset-storage</code></li>
+            <li><strong>Cloud Storage Bucket:</strong> <code>central-asset-storage.appspot.com</code></li>
+          </ul>
+          <h3>Struktura dat</h3>
+          <p>Veškerá data aplikace jsou z bezpečnostních důvodů ukládána pod specifickou cestou, která zajišťuje oddělení dat mezi různými aplikacemi.</p>
+          <ul>
+            <li><strong>Šablony bannerů</strong> jsou uloženy v kolekci Firestore:<br><code>/artifacts/banner-creator-app/public/data/banner_templates</code></li>
+            <li><strong>Metadata samolepek</strong> jsou uložena v kolekci Firestore:<br><code>/artifacts/banner-creator-app/public/data/stickers</code></li>
+            <li><strong>Soubory samolepek</strong> se ukládají do Cloud Storage do složky:<br><code>/artifacts/banner-creator-app/public/stickers/</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<div id="mobile-view" hidden>
+  <iframe
+    id="mobile-lab-frame"
+    src="/DAY73/sandbox/notes-mobile-lab/index.html"
+    title="Notes Lab Mobile"
+    loading="lazy"
+    allow="clipboard-write; camera; microphone"
+    style="display:block;width:100%;height:calc(100vh - 80px);max-height:100vh;border:0;background:#f8fafc;"
+  ></iframe>
+</div>
+
+<div id="manifest-view"
+ class="manifest-view-wrapper" hidden>
+ <div class="manifest-view-header">
+   <div>
+     <h2 class="manifest-view-title">📂 Struktura aplikace</h2>
+     <p class="manifest-view-subtitle">Aktuální mapa klíčových souborů Project_73.</p>
+   </div>
+   <button id="manifest-refresh" type="button" class="manifest-view-refresh">↻ Načíst znovu</button>
+ </div>
+ <div id="manifest-view-status" class="manifest-view-status" data-tone="info"></div>
+ <div id="manifest-view-table" class="manifest-view-table"></div>
+</div>
+
+
 <!-- ✅ Quick Deploy Panel -->
 <div id="deploy-panel" style="position:fixed; bottom:16px; right:16px; width:360px; background:#111827; color:#f1f5f9; font:12px/1.45 'Inter',sans-serif; padding:14px 16px; border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.35); display:none; z-index:3000;">
  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px;">
@@ -409,15 +892,28 @@ Další odkaz: https://example.com/page"></textarea>
      <button id="deploy-close" style="background:none;border:0;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1;">×</button>
    </div>
  </div>
- <pre style="margin:0; white-space:pre; overflow:auto; max-height:170px;"><code id="deploy-commands">npm run sync:grid
+ <!-- QUICK_DEPLOY_COMMANDS_START -->
+ <pre style="margin:0; white-space:pre; overflow:auto; max-height:170px;"><code id="deploy-commands"># ⚡ Rychlé volby (copy & paste podle situace)
+
+# 1) 1:1 deploy – nic nepřegeneruje, vezme aktuální build
+firebase deploy --only hosting:onlineday73
+
+# 2) Nový build + deploy (když se měnil kód / assets)
+npm run sync:grid
 npm run build
 firebase deploy --only hosting:onlineday73
-# +functions (pokud změny ve functions/)
+
+# 2b) Build + deploy i s functions (pokud se měnily)
+npm run sync:grid
+npm run build
 firebase deploy --only hosting:onlineday73,functions
-# Preview (např. PR 123)
+
+# 3) Preview kanál (např. PR 123, expirace 7 dní)
 firebase hosting:channel:deploy pr-123 --expires 7d --only hosting:onlineday73
-# Pozn: npm install spouštěj jen při změně závislostí
+
+# ℹ️ Poznámka: 'npm install' spusť jen při změně závislostí
 </code></pre>
+ <!-- QUICK_DEPLOY_COMMANDS_END -->
  <pre id="debug-commands" style="margin:0; white-space:pre; overflow:auto; max-height:170px; display:none;"><code># 🐛 TROUBLESHOOTING: Změny se nezobrazují v browseru
 
 ## 1. Cache problém (nejčastější)
@@ -461,58 +957,16 @@ fetch(location.href.split('?')[0]).then(r=>r.text()).then(t=>console.log(t.inclu
    <h2>🧩 Super Modul</h2>
    <p>Tato scéna je připravená na budoucí agregaci modulů. Zatím je prázdná, takže můžeš začít tvořit od nuly.</p>
  </div>
- <section class="bosch-laundry" aria-labelledby="bosch-laundry-title">
-   <div class="bosch-laundry__inner">
-     <div class="bosch-laundry__heading">
-       <h2 id="bosch-laundry-title" class="bosch-laundry__title">Výhody našich spotřebičů na praní prádla</h2>
-     </div>
-     <div class="bosch-laundry__rows">
-       <article class="bosch-laundry__row">
-         <div class="bosch-laundry__media">
-           <picture>
-             <source srcset="https://media3.bosch-home.com/Images/900x/23280869_REU_PCC_Laundry_Room_side_by_side_instalation_with_Series_8_washer_and_dryer.webp 1x, https://media3.bosch-home.com/Images/1200x/23280869_REU_PCC_Laundry_Room_side_by_side_instalation_with_Series_8_washer_and_dryer.webp 2x" type="image/webp" />
-             <source srcset="https://media3.bosch-home.com/Images/900x/23280869_REU_PCC_Laundry_Room_side_by_side_instalation_with_Series_8_washer_and_dryer.jpg 1x, https://media3.bosch-home.com/Images/1200x/23280869_REU_PCC_Laundry_Room_side_by_side_instalation_with_Series_8_washer_and_dryer.jpg 2x" type="image/jpeg" />
-             <img loading="lazy" src="https://media3.bosch-home.com/Images/900x/23280869_REU_PCC_Laundry_Room_side_by_side_instalation_with_Series_8_washer_and_dryer.jpg" alt="Pračka a sušička vedle sebe v moderní koupelně." />
-           </picture>
-         </div>
-         <div class="bosch-laundry__content">
-           <h3 class="bosch-laundry__subtitle">Dokonalá péče o veškeré vaše oblečení</h3>
-           <p>Naše výrobky šetrně a přitom důkladně perou a suší všechny typy oděvů a úrovně znečištění, od velmi znečištěného sportovního oblečení a každodenních košil až po jemné svetry. Výsledkem je dokonale čisté a suché prádlo. Díky řadě praktických a chytrých programů a funkcí je praní prádla maximálně snadné a bezproblémové.</p>
-         </div>
-       </article>
-       <article class="bosch-laundry__row bosch-laundry__row--reverse">
-         <div class="bosch-laundry__media">
-           <picture>
-             <source srcset="https://media3.bosch-home.com/Images/900x/19810383_Bosch_PLC_Washing_Sustainability_1200x676.webp 1x, https://media3.bosch-home.com/Images/1200x/19810383_Bosch_PLC_Washing_Sustainability_1200x676.webp 2x" type="image/webp" />
-             <source srcset="https://media3.bosch-home.com/Images/900x/19810383_Bosch_PLC_Washing_Sustainability_1200x676.jpg 1x, https://media3.bosch-home.com/Images/1200x/19810383_Bosch_PLC_Washing_Sustainability_1200x676.jpg 2x" type="image/jpeg" />
-             <img loading="lazy" src="https://media3.bosch-home.com/Images/900x/19810383_Bosch_PLC_Washing_Sustainability_1200x676.jpg" alt="Kupka složeného barevného oblečení na pračce." />
-           </picture>
-         </div>
-         <div class="bosch-laundry__content">
-           <h3 class="bosch-laundry__subtitle">Efektivní a udržitelná volba</h3>
-           <p>Jak poznáte, že se skutečně snažíme udržet životní prostředí stejně čisté jako vaše prádlo? Naše vlajková loď, sušička s tepelným čerpadlem, překonává normy třídy energetické účinnosti A+++ o 10 % a pračka s ní kompatibilní překonává třídu A o 50 %<sup>1</sup>. Navíc se na pračku Bosch můžete spolehnout po dlouhá léta. Na motor Eco Silence Drive v našich strojích je dokonce poskytována desetiletá záruka na motor, což svědčí o jeho výjimečné kvalitě. Řada různých funkcí pro úsporu vody, čisticích prostředků a energie vám navíc pomůže žít šetrněji.</p>
-           <p class="bosch-laundry__footnote"><sup>1</sup> <span>O 50 % energeticky účinnější (25 kWh/100 cyklů) než limitní hodnota (50 kWh/100 cyklů) energetické třídy A podle delegovaného nařízení EU 2019/2014.</span></p>
-         </div>
-       </article>
-       <article class="bosch-laundry__row">
-         <div class="bosch-laundry__media">
-           <picture>
-             <source srcset="https://media3.bosch-home.com/Images/900x/19810380_Bosch_PLC_Washing_Lineup_1200x676.webp 1x, https://media3.bosch-home.com/Images/1200x/19810380_Bosch_PLC_Washing_Lineup_1200x676.webp 2x" type="image/webp" />
-             <source srcset="https://media3.bosch-home.com/Images/900x/19810380_Bosch_PLC_Washing_Lineup_1200x676.jpg 1x, https://media3.bosch-home.com/Images/1200x/19810380_Bosch_PLC_Washing_Lineup_1200x676.jpg 2x" type="image/jpeg" />
-             <img loading="lazy" src="https://media3.bosch-home.com/Images/900x/19810380_Bosch_PLC_Washing_Lineup_1200x676.jpg" alt="Sestava zobrazující pračku se sušičkou, pračku a sušičku." />
-           </picture>
-         </div>
-         <div class="bosch-laundry__content">
-           <h3 class="bosch-laundry__subtitle">Vyhoví vašim potřebám</h3>
-           <p>Ať už je velikost vaší domácnosti nebo potřeby praní jakákoliv, v naší široké nabídce vysoce kvalitních výrobků najdete to pravé. Kromě široké škály kapacit nabízíme také něco pro všechny rozpočty a osobní preference. Například naše chytré produkty Serie&nbsp;8 jsou ideální pro ty, kteří chtějí velkokapacitní spotřebič s nejnovějšími technologiemi a špičkovými funkcemi. Chcete-li cenově výhodný model v kvalitě Bosch, je Serie&nbsp;2 tou pravou volbou.</p>
-         </div>
-       </article>
-     </div>
-   </div>
- </section>
  <div class="super-modul-stage" aria-hidden="true">Přidej sem první komponentu nebo sekci podle potřeby.</div>
 </div>
 
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js" integrity="sha384-QUJ+ckWz1M+a7w0UfG1sEn4pPrbQwSxGm/1TIPyioqXBrwuT9l4f9gdHWLDLbVWI" crossorigin="anonymous"></script>
+<script type="module" src="/DAY73/notes-app.js"></script>
+<script type="module" src="/DAY73/manifest-view.js"></script>
+<script type="module" src="/DAY73/modules/banners/banners.js"></script>
+<script type="module" src="/DAY73/modules/mobile/mobile.js"></script>
+<script type="module" src="/DAY73/modules/pokus/pokus.js"></script>
+<script type="module" src="/DAY73/modules/mindmap/mindmap.js"></script>
 <script src="/DAY73/grid-app.js"></script>
 </body>
 </html>
