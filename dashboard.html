@@ -405,6 +405,105 @@
   .upload-indicator.active {
     display: block;
   }
+
+  /* Card Detail Panel */
+  .card-detail-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .card-detail-overlay.active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .card-detail-panel {
+    position: fixed;
+    top: 0;
+    right: -500px;
+    width: 500px;
+    height: 100vh;
+    background: white;
+    box-shadow: -4px 0 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-detail-panel.active {
+    right: 0;
+  }
+
+  .card-detail-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #dfe1e6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-detail-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #172b4d;
+  }
+
+  .btn-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #5e6c84;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+
+  .btn-close:hover {
+    background: #f4f5f7;
+    color: #172b4d;
+  }
+
+  .card-detail-body {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+  }
+
+  #cardDetailEditor {
+    min-height: 400px;
+    border: 1px solid #dfe1e6;
+    border-radius: 4px;
+    padding: 1rem;
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+
+  #cardDetailEditor:focus {
+    outline: none;
+    border-color: #0079bf;
+  }
+
+  @media (max-width: 768px) {
+    .card-detail-panel {
+      width: 100%;
+      right: -100%;
+    }
+  }
 </style>
 </head>
 <body>
@@ -596,6 +695,7 @@ function renderKanban() {
            draggable="${!showArchived}"
            data-id="${card.id}"
            tabindex="0"
+           ondblclick="${!showArchived ? `openCardDetail('${card.id}')` : ''}"
            ondragstart="${!showArchived ? 'handleDragStart(event)' : ''}"
            ondragend="${!showArchived ? 'handleDragEnd(event)' : ''}"
            ondragover="${!showArchived ? 'handleCardDragOver(event)' : ''}"
@@ -939,6 +1039,73 @@ async function uploadCardImage(cardId, blob) {
   }
 }
 
+// Card Detail Panel
+let currentDetailCardId = null;
+
+window.openCardDetail = function(cardId) {
+  const card = cards.find(c => c.id === cardId);
+  if (!card) return;
+
+  currentDetailCardId = cardId;
+
+  // Set title
+  document.getElementById('cardDetailTitle').textContent = card.title;
+
+  // Set editor content
+  const editor = document.getElementById('cardDetailEditor');
+  editor.contentEditable = 'true';
+  editor.innerHTML = card.body || '<p>Začni psát...</p>';
+
+  // Show panel
+  document.getElementById('cardDetailOverlay').classList.add('active');
+  document.getElementById('cardDetailPanel').classList.add('active');
+
+  // Focus editor
+  setTimeout(() => editor.focus(), 300);
+
+  // Auto-save on input
+  editor.oninput = debounce(() => saveCardBody(cardId), 1000);
+};
+
+window.closeCardDetail = function() {
+  // Save before closing
+  if (currentDetailCardId) {
+    saveCardBody(currentDetailCardId);
+  }
+
+  document.getElementById('cardDetailOverlay').classList.remove('active');
+  document.getElementById('cardDetailPanel').classList.remove('active');
+  currentDetailCardId = null;
+};
+
+async function saveCardBody(cardId) {
+  const editor = document.getElementById('cardDetailEditor');
+  const body = editor.innerHTML;
+
+  try {
+    const { db, doc, updateDoc } = window.firebase;
+    await updateDoc(doc(db, 'kanban-cards', cardId), {
+      body: body
+    });
+    console.log('[Dashboard] Card body saved');
+  } catch (error) {
+    console.error('[Dashboard] Error saving card body:', error);
+  }
+}
+
+// Debounce helper
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 // Initialize when Firebase is ready
 function init() {
   if (!window.firebase || !window.firebase.db) {
@@ -954,6 +1121,18 @@ function init() {
 // Start initialization
 init();
 </script>
+
+<!-- Card Detail Panel -->
+<div class="card-detail-overlay" id="cardDetailOverlay" onclick="closeCardDetail()"></div>
+<div class="card-detail-panel" id="cardDetailPanel">
+  <div class="card-detail-header">
+    <h3 id="cardDetailTitle">Název karty</h3>
+    <button onclick="closeCardDetail()" class="btn-close">✕</button>
+  </div>
+  <div class="card-detail-body">
+    <div id="cardDetailEditor"></div>
+  </div>
+</div>
 
 </body>
 </html>
