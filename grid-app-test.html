@@ -80,7 +80,6 @@
    <a href="?view=elektrocz" data-toplink="elektrocz" class="p73-topbar-link">elektrocz.com</a>
   <a href="?view=notes" data-toplink="notes" class="p73-topbar-link">Poznámky</a>
   <a href="/DAY73/notes-lab.html" data-toplink="notes-lab" class="p73-topbar-link" target="_blank" rel="noopener">Notes Lab</a>
-  <a href="?view=manifest" data-toplink="manifest" class="p73-topbar-link">Struktura</a>
   <a href="?view=pokus" data-toplink="pokus" class="p73-topbar-link">POKUS</a>
   <a href="?view=mobile" data-toplink="mobile" class="p73-topbar-link">Mobil</a>
   <a href="?view=banners" data-toplink="banners" class="p73-topbar-link">Banery</a>
@@ -150,7 +149,6 @@
       { view:'elektrocz', label:'elektrocz.com' },
       { view:'notes', label:'Poznámky' },
       { view:'notes-lab', label:'Notes Lab', href:'/DAY73/notes-lab.html' },
-      { view:'manifest', label:'Struktura' },
       { view:'mindmap', label:'Mindmap' },
       { view:'pokus', label:'POKUS' },
       { view:'mobile', label:'Mobil' },
@@ -810,19 +808,6 @@ Další odkaz: https://example.com/page"></textarea>
   ></iframe>
 </div>
 
-<div id="manifest-view"
- class="manifest-view-wrapper" hidden>
- <div class="manifest-view-header">
-   <div>
-     <h2 class="manifest-view-title">📂 Struktura aplikace</h2>
-     <p class="manifest-view-subtitle">Aktuální mapa klíčových souborů Project_73.</p>
-   </div>
-   <button id="manifest-refresh" type="button" class="manifest-view-refresh">↻ Načíst znovu</button>
- </div>
- <div id="manifest-view-status" class="manifest-view-status" data-tone="info"></div>
- <div id="manifest-view-table" class="manifest-view-table"></div>
-</div>
-
 
 <!-- ✅ Quick Deploy Panel -->
 <div id="deploy-panel" style="position:fixed; bottom:16px; right:16px; width:360px; background:#111827; color:#f1f5f9; font:12px/1.45 'Inter',sans-serif; padding:14px 16px; border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.35); display:none; z-index:3000;">
@@ -998,7 +983,6 @@ fetch(location.href.split('?')[0]).then(r=>r.text()).then(t=>console.log(t.inclu
 
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js" integrity="sha384-QUJ+ckWz1M+a7w0UfG1sEn4pPrbQwSxGm/1TIPyioqXBrwuT9l4f9gdHWLDLbVWI" crossorigin="anonymous"></script>
 <script src="/DAY73-cloud/notes-view.js"></script>
-<script type="module" src="/DAY73/manifest-view.js"></script>
 <script type="module" src="/DAY73/modules/banners/banners.js"></script>
 <script type="module" src="/DAY73/modules/mobile/mobile.js"></script>
 <script type="module" src="/DAY73/modules/pokus/pokus.js"></script>
