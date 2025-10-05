@@ -252,8 +252,7 @@ const NotesView = (() => {
     editorWrapperEl = root.querySelector('#notes-editor');
     editorSurfaceEl = root.querySelector('#notes-editor-surface');
     formEl = root.querySelector('#notes-form');
-    saveBtn = root.querySelector('#notes-save');
-    cancelBtn = root.querySelector('#notes-cancel');
+    // saveBtn and cancelBtn are now created in mountToolbarActions()
 
     attachFolderHandlers();
     attachListHandlers();
@@ -506,9 +505,23 @@ const NotesView = (() => {
     return true;
   }
 
+  function createToolbarButton(config) {
+    const btn = document.createElement('button');
+    btn.type = config.type || 'button';
+    btn.className = config.className;
+    btn.title = config.title;
+    if (config.hidden) btn.hidden = true;
+    btn.innerHTML = config.icon;
+
+    if (config.onClick) {
+      btn.addEventListener('click', config.onClick);
+    }
+
+    return btn;
+  }
+
   function mountToolbarActions() {
     if (toolbarActionsMounted) return;
-    if (!deleteNoteBtn || !saveBtn || !cancelBtn) return;
 
     const toolbarModule = quill?.getModule?.('toolbar');
     const toolbarEl = toolbarModule?.container;
@@ -521,9 +534,35 @@ const NotesView = (() => {
       toolbarEl.appendChild(wrapper);
     }
 
+    // Create Save button
+    saveBtn = createToolbarButton({
+      type: 'submit',
+      className: 'notes-btn-primary',
+      title: 'Uložit změny',
+      icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+      onClick: (e) => {
+        e.preventDefault();
+        formEl?.requestSubmit(saveBtn);
+      }
+    });
     wrapper.appendChild(saveBtn);
+
+    // Create Cancel button
+    cancelBtn = createToolbarButton({
+      type: 'button',
+      className: 'notes-btn-secondary',
+      title: 'Zrušit',
+      icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
+      hidden: true,
+      onClick: handleCancelEdit
+    });
     wrapper.appendChild(cancelBtn);
-    wrapper.appendChild(deleteNoteBtn);
+
+    // Move existing delete button if found, or create new one
+    if (deleteNoteBtn) {
+      wrapper.appendChild(deleteNoteBtn);
+    }
+
     toolbarActionsMounted = true;
   }
 

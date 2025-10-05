@@ -652,16 +652,7 @@ body.view-notes #notes-app {
 }
 
 .notes-editor-form {
-  position: absolute;
-  visibility: hidden;
-  pointer-events: none;
-  height: 0;
-  overflow: hidden;
-}
-
-.notes-editor-actions-bar {
-  display: flex;
-  gap: 4px;
+  display: none;
 }
 
 .notes-btn-primary,
