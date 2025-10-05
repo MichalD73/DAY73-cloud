@@ -1231,6 +1231,7 @@ const NotesView = (() => {
     folderUnsubscribe = onSnapshot(q, async (snapshot) => {
       if (snapshot.empty) {
         await ensureDefaultFolder(colRef);
+        // Listener will fire again when folder is created, so return here
         return;
       }
 
@@ -1277,9 +1278,11 @@ const NotesView = (() => {
     renderNotes();
 
     if (!activeView || !currentUser || !currentFolderId || !firebaseReady()) {
+      console.warn('[Notes] subscribeNotes aborted:', { activeView, hasUser: !!currentUser, currentFolderId, firebaseReady: firebaseReady() });
       return;
     }
 
+    console.log('[Notes] subscribeNotes starting for folder:', currentFolderId);
     setStatus('Načítám poznámky…', 'neutral');
 
     const { db, collection, onSnapshot, orderBy, query, where, limit } = window.firebase;
@@ -1292,6 +1295,7 @@ const NotesView = (() => {
     );
 
     notesUnsubscribe = onSnapshot(q, (snapshot) => {
+      console.log('[Notes] onSnapshot received:', snapshot.size, 'notes');
       const next = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data() || {};
