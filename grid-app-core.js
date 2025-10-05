@@ -35,7 +35,9 @@
     if (!workspaceId) return false;
     const configs = window.workspaceConfigs || {};
     const config = configs[workspaceId];
-    return !!(config && config.supportsSetups);
+    const result = !!(config && config.supportsSetups);
+    console.log('[workspaceSupportsSetups]', { workspaceId, hasConfig: !!config, supportsSetups: config?.supportsSetups, result });
+    return result;
   });
 
   define('setupRealtimeListener', function setupRealtimeListener(){
