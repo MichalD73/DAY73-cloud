@@ -581,11 +581,15 @@ body.view-notes #notes-app {
   border: 1px solid #e5e7eb;
   border-radius: 12px 12px 0 0;
   margin-bottom: -1px;
-  display: flex;
-  flex-wrap: nowrap;
+  display: flex !important;
+  flex-wrap: nowrap !important;
   overflow-x: auto;
   overflow-y: hidden;
   align-items: center;
+}
+
+.notes-editor-surface .ql-toolbar .ql-formats {
+  flex-shrink: 0;
 }
 
 .notes-editor-surface .ql-toolbar::-webkit-scrollbar {
