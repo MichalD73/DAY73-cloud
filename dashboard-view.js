@@ -94,6 +94,15 @@
       ]
     },
     {
+      title: "Deployment Checklist & Lessons Learned",
+      status: "critical",
+      description: "KRITICKÁ dokumentace deployment procesu - co dělat VŽDY, co NIKDY nedělat, lessons learned z chyb, pre-deployment checklist",
+      links: [
+        { label: "🚨 POVINNÉ - Přečíst", url: "DEPLOYMENT-CHECKLIST.md" },
+        { label: "📄 Claude Instructions (updated)", url: "CLAUDE-INSTRUCTIONS.md" }
+      ]
+    },
+    {
       title: "AI Confusion Prevention",
       status: "completed",
       description: "Kompletní úklid workspace - archivace starých složek (DAY73/, dist/DAY73/), dokumentace všech složek v .DO-NOT-EDIT-THESE-FOLDERS.md",

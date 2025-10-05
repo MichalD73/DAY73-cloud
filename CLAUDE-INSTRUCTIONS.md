@@ -120,3 +120,68 @@ npm run deploy:cloud
 ### 🎯 Při každém startu konverzace řekni:
 
 "✅ Pracuji v DAY73-cloud vývojové verzi. Originál v public/DAY73/ zůstává nedotčený."
+
+---
+
+## 🚨 DEPLOYMENT - KRITICKÁ PRAVIDLA
+
+### ⚠️ POVINNÉ: Před deploymentem VŽDY přečti DEPLOYMENT-CHECKLIST.md!
+
+```bash
+cat DEPLOYMENT-CHECKLIST.md
+```
+
+### 🔴 NIKDY NEDĚLEJ:
+
+1. ❌ **NIKDY nevytvářej firebase.json v DAY73-cloud/**
+   - Firebase config patří POUZE do root `Workspace7/`
+
+2. ❌ **NIKDY nedeployuj z DAY73-cloud/**
+   - Deploy MUSÍ probíhat z `Workspace7/` root!
+
+3. ❌ **NIKDY neposílej URL bez /DAY73-cloud/**
+   - ŠPATNĚ: `https://onlineday73.web.app`
+   - SPRÁVNĚ: `https://onlineday73.web.app/DAY73-cloud/grid-app-test.html`
+
+### ✅ SPRÁVNÝ DEPLOYMENT:
+
+```bash
+# 1. Vyvíjej v DAY73-cloud/
+cd /Users/michaldaniel73/APP73/Workspaces/Workspace7/DAY73-cloud
+# ... edituj soubory ...
+
+# 2. Commit (auto-sync se spustí)
+git add .
+git commit -m "message"
+
+# 3. Deploy z ROOT!
+cd /Users/michaldaniel73/APP73/Workspaces/Workspace7
+firebase deploy --only hosting:onlineday73 --project central-asset-storage
+
+# 4. Push
+cd DAY73-cloud
+git push
+```
+
+### 📋 Pre-Deployment Checklist:
+
+- [ ] Přečetl jsem DEPLOYMENT-CHECKLIST.md?
+- [ ] Jsem v ROOT složce `Workspace7/` pro deploy?
+- [ ] Sync proběhl (automaticky po commitu)?
+- [ ] Znám správnou URL: `/DAY73-cloud/grid-app-test.html`?
+
+### 🚨 RED FLAGS - STOP!
+
+Když vidíš:
+- 🚩 "Page Not Found" - Přečti DEPLOYMENT-CHECKLIST.md
+- 🚩 Deployment má 500+ souborů - Deployuješ ze špatné složky!
+- 🚩 Uživatel říká "nefunguje" - Přečti dokumentaci!
+
+---
+
+## 📚 Dokumentace - Musíš znát:
+
+1. **DEPLOYMENT-CHECKLIST.md** - Deployment pravidla (POVINNÉ!)
+2. **DOMAINS-DEPLOY.md** - Hosting a deploy workflow
+3. **CLAUDE-INSTRUCTIONS.md** - Tento soubor
+4. **START-HERE.md** - Úvod do projektu

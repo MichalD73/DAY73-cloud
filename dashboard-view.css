@@ -157,6 +157,22 @@ body.view-dashboard #dashboard-view {
   color: white;
 }
 
+.project-status.critical {
+  background: #eb5a46;
+  color: white;
+  font-weight: 600;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
 .project-desc {
   font-size: 0.875rem;
   color: #5e6c84;
