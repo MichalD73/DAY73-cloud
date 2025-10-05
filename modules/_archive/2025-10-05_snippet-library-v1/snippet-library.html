@@ -1,0 +1,62 @@
+<!-- ========================================
+     SNIPPET LIBRARY V1 - ARCHIVED 2025-10-05
+     ======================================== -->
+<!-- Důvod archivace: Modul nikdy nebyl používán, účel lze vymyslet lépe
+     Tento soubor obsahuje původní HTML markup pro Knihovnu kódů -->
+
+<div id="snippet-library-view" class="snippet-view-wrapper">
+ <div class="snippet-header">
+   <h2>🧠 Knihovna kódů</h2>
+   <p>Ukládejte si často používané části kódu s náhledovým obrázkem a popisem. Všechno se ukládá přímo do Firebase a máte k tomu přístup z jakéhokoli zařízení po přihlášení.</p>
+ </div>
+ <form id="snippet-form" class="snippet-form">
+   <div class="snippet-form-grid">
+     <div class="snippet-form-field">
+       <label for="snippet-title">Název</label>
+       <input id="snippet-title" name="title" type="text" placeholder="Landing page hero, formulář..." required />
+     </div>
+     <div class="snippet-form-field full">
+       <label for="snippet-thumbnail">Náhled (URL obrázku)</label>
+       <input id="snippet-thumbnail" name="thumbnailUrl" type="text" placeholder="https://.../preview.png nebo vlož (Ctrl+V)" />
+     </div>
+     <div class="snippet-form-field full">
+       <label for="snippet-thumbnail-file">Nahrát printscreen</label>
+       <div class="snippet-upload-group">
+         <div id="snippet-upload-preview" class="snippet-upload-preview">Bez náhledu</div>
+         <div id="snippet-paste-drop-zone"><span>Vlož sem printscreen (Ctrl/⌘+V)<br/>nebo přetáhni obrázek</span></div>
+         <div class="snippet-upload-actions">
+           <input id="snippet-thumbnail-file" type="file" accept="image/*" hidden />
+           <div class="flex gap-2">
+             <button type="button" id="snippet-upload-select" class="snippet-button-upload">Vybrat obrázek</button>
+             <button type="button" id="snippet-upload-clear" class="snippet-button-ghost">Odebrat</button>
+           </div>
+           <div class="snippet-upload-status" id="snippet-upload-status">Soubor nevybrán</div>
+           <div class="text-xs text-gray-400">Po nahrání se URL vyplní automaticky.</div>
+         </div>
+       </div>
+     </div>
+     <div class="snippet-form-field full">
+       <label for="snippet-description">Popis</label>
+       <textarea id="snippet-description" name="description" rows="3" placeholder="Krátké poznámky k použití..."></textarea>
+     </div>
+     <div class="snippet-form-field full">
+       <label for="snippet-code">Kód</label>
+       <textarea id="snippet-code" name="code" rows="8" placeholder="Sem vlož kód" required></textarea>
+     </div>
+   </div>
+   <div class="snippet-alert">Tip: Vlož printscreen (Ctrl/⌘+V), přetáhni obrázek nebo vyplň URL – po nahrání se doplní automaticky.</div>
+   <div class="snippet-form-actions">
+     <button type="button" id="snippet-reset" class="snippet-button-secondary">Vymazat formulář</button>
+     <button type="submit" class="snippet-button-primary">Uložit kód</button>
+   </div>
+ </form>
+ <div class="snippet-list-header">
+   <div class="snippet-list-header-top">
+     <h3 class="snippet-list-title">Uložené kódy</h3>
+     <div class="snippet-list-count">Celkem: <span id="snippet-count">0</span></div>
+   </div>
+   <input id="snippet-search" type="search" class="snippet-search" placeholder="Filtrovat podle názvu nebo popisu" />
+ </div>
+<div id="snippet-empty" class="snippet-empty">Žádné kódy zatím nejsou uložené. Přidej první pomocí formuláře výše.</div>
+ <div id="snippet-list" class="snippet-list"></div>
+</div>
