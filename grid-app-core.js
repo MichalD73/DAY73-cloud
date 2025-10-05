@@ -1359,5 +1359,155 @@ body.dnd-active .nav-icons { opacity: 0 !important; transform: translate(-50%, 8
   if(document.readyState!=='loading'){ window.attachSidebarListeners && window.attachSidebarListeners(); }
   else document.addEventListener('DOMContentLoaded', ()=> window.attachSidebarListeners && window.attachSidebarListeners());
 
+  // ================= Navigation Overflow Menu =================
+  define('initNavOverflow', function initNavOverflow() {
+    const nav = document.querySelector('.p73-topbar-nav');
+    if (!nav) return;
+
+    let moreContainer = null;
+    let moreBtn = null;
+    let morePanel = null;
+    let allNavItems = [];
+    let resizeObserver = null;
+
+    function setupOverflowMenu() {
+      // Wrap all existing nav items (except the more button)
+      const existingItems = Array.from(nav.children).filter(child => !child.classList.contains('p73-nav-more'));
+
+      allNavItems = existingItems.map(item => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'p73-nav-item';
+        item.parentNode.insertBefore(wrapper, item);
+        wrapper.appendChild(item);
+        return {
+          wrapper,
+          element: item,
+          isDropdown: item.classList.contains('p73-topbar-dropdown')
+        };
+      });
+
+      // Create "More" dropdown if not exists
+      if (!moreContainer) {
+        moreContainer = document.createElement('div');
+        moreContainer.className = 'p73-nav-more';
+        moreContainer.style.display = 'none';
+
+        moreBtn = document.createElement('button');
+        moreBtn.className = 'p73-nav-more-btn';
+        moreBtn.textContent = 'Další';
+        moreBtn.type = 'button';
+
+        morePanel = document.createElement('div');
+        morePanel.className = 'p73-nav-more-panel';
+        morePanel.hidden = true;
+
+        moreContainer.appendChild(moreBtn);
+        moreContainer.appendChild(morePanel);
+        nav.appendChild(moreContainer);
+
+        // Toggle dropdown
+        moreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isOpen = !morePanel.hidden;
+          morePanel.hidden = isOpen;
+          moreContainer.classList.toggle('open', !isOpen);
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', () => {
+          if (!morePanel.hidden) {
+            morePanel.hidden = true;
+            moreContainer.classList.remove('open');
+          }
+        });
+
+        morePanel.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+      }
+    }
+
+    function handleOverflow() {
+      if (!moreContainer || allNavItems.length === 0) return;
+
+      const navWidth = nav.offsetWidth;
+      const moreWidth = 100; // Reserve space for "More" button
+      let availableWidth = navWidth - moreWidth;
+      let visibleCount = 0;
+
+      // Reset all items to visible
+      allNavItems.forEach(item => {
+        item.wrapper.style.display = '';
+      });
+      morePanel.innerHTML = '';
+
+      // Calculate which items fit
+      for (let i = 0; i < allNavItems.length; i++) {
+        const item = allNavItems[i];
+        const itemWidth = item.wrapper.offsetWidth;
+
+        if (availableWidth >= itemWidth) {
+          availableWidth -= itemWidth;
+          visibleCount++;
+        } else {
+          break;
+        }
+      }
+
+      // Hide overflow items and add to dropdown
+      const hiddenItems = allNavItems.slice(visibleCount);
+
+      if (hiddenItems.length > 0) {
+        hiddenItems.forEach(item => {
+          item.wrapper.style.display = 'none';
+
+          // Clone the link for the dropdown (but not dropdown containers)
+          if (!item.isDropdown) {
+            const link = item.element.cloneNode(true);
+            link.classList.remove('p73-topbar-link');
+            morePanel.appendChild(link);
+          } else {
+            // For dropdown items, just add a simple link to the view
+            const dropdownLink = item.element.querySelector('.p73-topbar-link');
+            if (dropdownLink) {
+              const simpleLink = document.createElement('a');
+              simpleLink.href = dropdownLink.href;
+              simpleLink.textContent = dropdownLink.textContent.replace(/\s+$/, '');
+              simpleLink.dataset.toplink = dropdownLink.dataset.toplink;
+              if (dropdownLink.classList.contains('active')) {
+                simpleLink.classList.add('active');
+              }
+              morePanel.appendChild(simpleLink);
+            }
+          }
+        });
+        moreContainer.style.display = '';
+      } else {
+        moreContainer.style.display = 'none';
+      }
+    }
+
+    setupOverflowMenu();
+    handleOverflow();
+
+    // Use ResizeObserver for efficient resize handling
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        handleOverflow();
+      });
+      resizeObserver.observe(nav);
+    } else {
+      // Fallback to window resize
+      window.addEventListener('resize', handleOverflow);
+    }
+
+    // Re-check on window load (fonts, etc.)
+    window.addEventListener('load', handleOverflow);
+  });
+
+  // Initialize navigation overflow after DOM ready
+  if(document.readyState!=='loading'){ window.initNavOverflow && window.initNavOverflow(); }
+  else document.addEventListener('DOMContentLoaded', ()=> window.initNavOverflow && window.initNavOverflow());
+
   console.log('[grid-app-core] extended core loaded');
 })();
