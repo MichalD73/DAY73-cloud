@@ -379,11 +379,7 @@ const NotesView = (() => {
   }
 
   function attachFormHandlers() {
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => {
-        submitContext = 'button';
-      });
-    }
+    // saveBtn and cancelBtn handlers are now attached in createToolbarButton()
 
     if (formEl) {
       formEl.addEventListener('submit', (event) => {
@@ -401,18 +397,6 @@ const NotesView = (() => {
         }
         lastSubmitContext = context;
         processSubmit();
-      });
-    }
-
-    if (cancelBtn) {
-      cancelBtn.addEventListener('click', () => {
-        if (detailMode === DETAIL_MODE.CREATING) {
-          clearDetail();
-          renderNotes();
-        } else if (currentNoteId) {
-          openNote(currentNoteId);
-          renderNotes();
-        }
       });
     }
 
@@ -542,6 +526,7 @@ const NotesView = (() => {
       icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',
       onClick: (e) => {
         e.preventDefault();
+        submitContext = 'button';
         formEl?.requestSubmit(saveBtn);
       }
     });
