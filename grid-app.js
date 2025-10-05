@@ -1110,7 +1110,7 @@ let workspaceSetupsDrawerOpen = false;
 const WORKSPACE_ALIAS_MAP = {
   workspace1: ['grid'],
   elektrocz: ['elektrocz.com'],
-  pokus: ['pokus', 'elektrocz-pokus'],
+  // pokus: ['pokus', 'elektrocz-pokus'], // ARCHIVED 2025-10-05
   pokus2: ['pokus2'],
   pokus3: ['pokus3'],
   pokus4: ['pokus4'],
@@ -1660,7 +1660,7 @@ function hideNavIcons(){
      workspace4: { collection: 'project73-workspace4', name: "Plocha 4", supportsSetups: true },
     workspace5: { collection: 'project73-workspace5', name: "Vlastní plocha", supportsSetups: true },
     elektrocz: { collection: 'project73-elektrocz', name: "elektrocz.com", supportsSetups: true },
-    pokus: { collection: 'project73-elektrocz-pokus', name: "POKUS", supportsSetups: true },
+    // pokus: { collection: 'project73-elektrocz-pokus', name: "POKUS", supportsSetups: true }, // ARCHIVED 2025-10-05
     pokus2: { collection: 'project73-pokus2', name: "POKUS 2", supportsSetups: true },
     pokus3: { collection: 'project73-pokus3', name: "POKUS 3", supportsSetups: true },
     pokus4: { collection: 'project73-pokus4', name: "POKUS 4", supportsSetups: true },
