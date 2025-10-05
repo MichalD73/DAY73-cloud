@@ -346,8 +346,12 @@ body.view-notes #notes-app {
 .notes-list-item__title {
   margin: 0 0 4px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 8px;
 }
 
 .notes-list-item__preview {
