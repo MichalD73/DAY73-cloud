@@ -590,6 +590,10 @@ body.view-notes #notes-app {
 .notes-editor-surface .ql-editor {
   font-size: 15px;
   line-height: 1.6;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 
