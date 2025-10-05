@@ -84,6 +84,23 @@
       links: [
         { label: "📄 Přečíst Dokumentaci", url: "GIT-WORKFLOW.md" }
       ]
+    },
+    {
+      title: "Navigation Overflow Menu",
+      status: "completed",
+      description: "Dropdown menu pro dlouhou navigaci - automaticky skryje položky co se nevejdou do 'Další' dropdown (Chrome bookmarks style)",
+      links: [
+        { label: "🔗 Live", url: "https://onlineday73.web.app/DAY73-cloud/grid-app-test.html" }
+      ]
+    },
+    {
+      title: "AI Confusion Prevention",
+      status: "completed",
+      description: "Kompletní úklid workspace - archivace starých složek (DAY73/, dist/DAY73/), dokumentace všech složek v .DO-NOT-EDIT-THESE-FOLDERS.md",
+      links: [
+        { label: "📄 Folder Guide", url: ".DO-NOT-EDIT-THESE-FOLDERS.md" },
+        { label: "📦 Archiv", url: "_ARCHIVE_old-versions_20251005/README.md" }
+      ]
     }
   ];
 
