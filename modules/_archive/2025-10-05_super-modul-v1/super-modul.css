@@ -1,0 +1,18 @@
+/* Super Modul - Prázdná šablona pro budoucí agregaci modulů */
+
+.super-modul-view { display:none; margin-left:300px; padding:12px 24px; }
+body.view-super-modul .super-modul-view { display:block; }
+body.view-super-modul #grid-container,
+body.view-super-modul #calendar-view,
+body.view-super-modul .assets-view-wrapper,
+body.view-super-modul .goal-canvas-wrapper { display:none; }
+
+.super-modul-header { display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
+.super-modul-header h2 { font-size:28px; font-weight:700; color:#111827; margin:0; }
+.super-modul-header p { color:#4b5563; font-size:14px; margin:0; max-width:640px; }
+.super-modul-stage { border:2px dashed #cbd5e1; border-radius:20px; min-height:320px; background:linear-gradient(135deg,#f8fafc,#eef2ff); display:flex; align-items:center; justify-content:center; color:#64748b; font-size:13px; text-align:center; padding:48px 24px; }
+
+/* View switching - hide super-modul when other views are active */
+body.view-goal-canvas .super-modul-view { display:none; }
+body.view-banners .super-modul-view { display:none; }
+body.view-mobile .super-modul-view { display:none; }

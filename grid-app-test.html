@@ -123,7 +123,7 @@
    <a href="?view=assets" data-toplink="assets" class="p73-topbar-link">Assets</a>
    <a href="?view=gallery" data-toplink="gallery" class="p73-topbar-link">Galerie</a>
 <!-- <a href="?view=snippets" data-toplink="snippets" class="p73-topbar-link">Kódy</a> REMOVED - archived -->
-   <a href="?view=super-modul" data-toplink="super-modul" class="p73-topbar-link">Super Modul</a>
+<!-- <a href="?view=super-modul" data-toplink="super-modul" class="p73-topbar-link">Super Modul</a> REMOVED - archived -->
    <a href="#" id="quick-deploy-btn" class="p73-topbar-link" title="Zobrazit rychlé deploy příkazy">Deploy</a>
  </nav>
  <div class="p73-topbar-actions">
@@ -153,9 +153,9 @@
       { view:'pokus6', label:'POKUS 6' },
        { view:'calendar', label:'Kalendář', href:'?view=calendar#calendar' },
        { view:'assets', label:'Assets' },
-       { view:'gallery', label:'Galerie' },
+       { view:'gallery', label:'Galerie' }
        // { view:'snippets', label:'Kódy' }, // REMOVED - archived
-       { view:'super-modul', label:'Super Modul' }
+       // { view:'super-modul', label:'Super Modul' } // REMOVED - archived
      ];
      // Vloží chybějící odkazy PŘED Deploy tlačítko zachováním původního pořadí
      anchorOrder.forEach(item => {
@@ -786,13 +786,9 @@ fetch(location.href.split('?')[0]).then(r=>r.text()).then(t=>console.log(t.inclu
  </div>
 </div>
 
-<div id="super-modul-view" class="super-modul-view">
- <div class="super-modul-header">
-   <h2>🧩 Super Modul</h2>
-   <p>Tato scéna je připravená na budoucí agregaci modulů. Zatím je prázdná, takže můžeš začít tvořit od nuly.</p>
- </div>
- <div class="super-modul-stage" aria-hidden="true">Přidej sem první komponentu nebo sekci podle potřeby.</div>
-</div>
+<!-- ===== SUPER MODUL REMOVED ===== -->
+<!-- Archived: modules/_archive/2025-10-05_super-modul-v1/ -->
+<!-- Důvod: Prázdná šablona bez funkcionality, nikdy nebyla využita -->
 
 <div id="dashboard-view" class="workspace-dashboard" hidden>
   <div class="dashboard-container">
