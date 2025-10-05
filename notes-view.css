@@ -619,15 +619,11 @@ body.view-notes #notes-app {
 }
 
 .notes-editor-form {
-  padding: 16px 24px;
-  border-top: 1px solid #e5e7eb;
+  display: none;
 }
 
 .notes-editor-actions-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  justify-content: flex-end;
+  display: none;
 }
 
 .notes-btn-primary,
@@ -721,6 +717,45 @@ body.view-notes #notes-app {
   gap: 8px;
   padding-left: 12px;
   border-left: 1px solid #e5e7eb;
+}
+
+.ql-toolbar .notes-btn-primary,
+.ql-toolbar .notes-btn-secondary {
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.ql-toolbar .notes-btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.ql-toolbar .notes-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ql-toolbar .notes-btn-secondary {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.ql-toolbar .notes-btn-secondary:hover {
+  background: #d1d5db;
+}
+
+.ql-toolbar .notes-btn-primary[hidden],
+.ql-toolbar .notes-btn-secondary[hidden] {
+  display: none;
 }
 
 .ql-toolbar .notes-toolbar-delete {

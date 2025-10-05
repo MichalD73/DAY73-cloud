@@ -508,7 +508,7 @@ const NotesView = (() => {
 
   function mountToolbarActions() {
     if (toolbarActionsMounted) return;
-    if (!deleteNoteBtn) return;
+    if (!deleteNoteBtn || !saveBtn || !cancelBtn) return;
 
     const toolbarModule = quill?.getModule?.('toolbar');
     const toolbarEl = toolbarModule?.container;
@@ -521,6 +521,8 @@ const NotesView = (() => {
       toolbarEl.appendChild(wrapper);
     }
 
+    wrapper.appendChild(saveBtn);
+    wrapper.appendChild(cancelBtn);
     wrapper.appendChild(deleteNoteBtn);
     toolbarActionsMounted = true;
   }
@@ -1559,20 +1561,34 @@ const NotesView = (() => {
   async function uploadDataUrlImage(dataUrl, noteId) {
     const parsed = dataUrlToBlob(dataUrl);
     if (!parsed || !firebaseReady() || !currentUser) {
+      console.warn('[Notes] uploadDataUrlImage: invalid state or data');
       return dataUrl;
     }
 
     const { blob, contentType } = parsed;
     const { storage, ref, uploadBytes, getDownloadURL } = window.firebase;
 
-    const safeNoteId = noteId || 'draft';
-    const extension = extractExtension(contentType);
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
-    const objectPath = `${NOTE_IMAGE_STORAGE_ROOT}/${currentUser.uid}/${safeNoteId}/${fileName}`;
-    const storageRef = ref(storage, objectPath);
+    if (!storage || !ref || !uploadBytes || !getDownloadURL) {
+      console.error('[Notes] uploadDataUrlImage: Firebase Storage API not available');
+      return dataUrl;
+    }
 
-    await uploadBytes(storageRef, blob, { contentType });
-    return getDownloadURL(storageRef);
+    try {
+      const safeNoteId = noteId || 'draft';
+      const extension = extractExtension(contentType);
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
+      const objectPath = `${NOTE_IMAGE_STORAGE_ROOT}/${currentUser.uid}/${safeNoteId}/${fileName}`;
+      const storageRef = ref(storage, objectPath);
+
+      console.log('[Notes] Uploading image to:', objectPath);
+      await uploadBytes(storageRef, blob, { contentType });
+      const downloadURL = await getDownloadURL(storageRef);
+      console.log('[Notes] Image uploaded successfully:', downloadURL);
+      return downloadURL;
+    } catch (error) {
+      console.error('[Notes] uploadDataUrlImage failed:', error);
+      throw error;
+    }
   }
 
   function dataUrlToBlob(dataUrl) {
