@@ -581,6 +581,35 @@ body.view-notes #notes-app {
   border: 1px solid #e5e7eb;
   border-radius: 12px 12px 0 0;
   margin-bottom: -1px;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: center;
+}
+
+.notes-editor-surface .ql-toolbar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.notes-editor-surface .ql-toolbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+/* Hide less important icons on smaller widths */
+@media (max-width: 1024px) {
+  .notes-editor-surface .ql-toolbar .ql-background,
+  .notes-editor-surface .ql-toolbar .ql-color {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .notes-editor-surface .ql-toolbar .ql-link,
+  .notes-editor-surface .ql-toolbar .ql-code-block {
+    display: none;
+  }
 }
 
 .notes-editor-surface .ql-toolbar button.ql-mini {
@@ -724,15 +753,17 @@ body.view-notes #notes-app {
   border: none;
   background: #2563eb;
   color: #ffffff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 5px 10px;
+  border-radius: 4px;
   transition: background 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ql-toolbar .notes-btn-primary:hover:not(:disabled) {
