@@ -2512,7 +2512,7 @@ function refreshWorkspaceToolbar(){
 
   if (!isFirebaseReady || !currentWorkspace || !workspaceConfigs[currentWorkspace]) {
     toolbar.hidden = true;
-    updateArchitektCopyToolbarButton();
+    // updateArchitektCopyToolbarButton(); // REMOVED - Architekt archived
     return;
   }
 
@@ -2580,10 +2580,10 @@ function refreshWorkspaceToolbar(){
   setupWorkspaceModuleEditing();
   setupWorkspaceToolbarNameEditing();
   renderWorkspaceSetups();
-  updateArchitektCopyToolbarButton();
-  if (!isArchitektWorkspace() && architektCopyPanelOpen) {
-    closeArchitektCopyPanel();
-  }
+  // updateArchitektCopyToolbarButton(); // REMOVED - Architekt archived
+  // if (!isArchitektWorkspace() && architektCopyPanelOpen) { // REMOVED - Architekt archived
+  //   closeArchitektCopyPanel();
+  // }
 
   toolbar.hidden = false;
 }
@@ -2656,7 +2656,7 @@ function setupArchitektCopyFeature() {
 
   document.addEventListener('keydown', handleArchitektCopyKeydown);
 
-  updateArchitektCopyToolbarButton();
+  // updateArchitektCopyToolbarButton(); // REMOVED - Architekt archived
 }
 
 function openArchitektCopyPanel() {
