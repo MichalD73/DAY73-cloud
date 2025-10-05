@@ -1791,12 +1791,13 @@ let lastDragSwapPositions = null; // uchování posledních swapovaných pozic p
 let gridDataCache = {}; // { 'r-c': { ..boxData } }
 let googleAuthProviderInstance = null;
 let workspaceSetupsDrawerOpen = false;
-const ARCHITEKT_WORKSPACE_ID = 'architekt';
-let architektCopyInitialized = false;
-let architektCopyPanelOpen = false;
-let architektCopyBusy = false;
-let architektCopyItems = [];
-const architektCopySelection = new Set();
+// ARCHITEKT MODULE - ARCHIVED 2025-10-05 (see modules/_archive/architekt/)
+// const ARCHITEKT_WORKSPACE_ID = 'architekt';
+// let architektCopyInitialized = false;
+// let architektCopyPanelOpen = false;
+// let architektCopyBusy = false;
+// let architektCopyItems = [];
+// const architektCopySelection = new Set();
 const WORKSPACE_ALIAS_MAP = {
   workspace1: ['grid'],
   elektrocz: ['elektrocz.com'],
@@ -1805,8 +1806,8 @@ const WORKSPACE_ALIAS_MAP = {
   pokus3: ['pokus3'],
   pokus4: ['pokus4'],
   pokus5: ['pokus5'],
-  pokus6: ['pokus6'],
-  architekt: ['architekt']
+  pokus6: ['pokus6']
+  // architekt: ['architekt'] // ARCHIVED 2025-10-05
 };
 
 let authGateEl = null;
@@ -2355,8 +2356,8 @@ function hideNavIcons(){
     pokus3: { collection: 'project73-pokus3', name: "POKUS 3", supportsSetups: true },
     pokus4: { collection: 'project73-pokus4', name: "POKUS 4", supportsSetups: true },
     pokus5: { collection: 'project73-pokus5', name: "POKUS 5", supportsSetups: true },
-    pokus6: { collection: 'project73-pokus6', name: "POKUS 6", supportsSetups: true },
-    architekt: { collection: 'project73-architekt', name: "Architekt", supportsSetups: true }
+    pokus6: { collection: 'project73-pokus6', name: "POKUS 6", supportsSetups: true }
+    // architekt: { collection: 'project73-architekt', name: "Architekt", supportsSetups: true } // ARCHIVED 2025-10-05
   };
 }
 
@@ -3278,6 +3279,12 @@ function refreshWorkspaceToolbar(){
   toolbar.hidden = false;
 }
 
+/* ======================================================================
+   ARCHITEKT MODULE - ARCHIVED 2025-10-05
+   All functions commented out, code preserved in modules/_archive/architekt/
+   Firebase collection 'project73-architekt' still exists
+   ====================================================================== */
+/*
 function isArchitektWorkspace(workspaceId = currentWorkspace) {
   return workspaceId === ARCHITEKT_WORKSPACE_ID;
 }
@@ -3632,6 +3639,10 @@ function handleArchitektCopyKeydown(event) {
     closeArchitektCopyPanel();
   }
 }
+*/
+/* ======================================================================
+   END ARCHITEKT MODULE
+   ====================================================================== */
 
 function setupWorkspaceModuleEditing(){
   const moduleEl = document.getElementById('workspace-toolbar-module');
@@ -5213,9 +5224,10 @@ async function switchWorkspace(workspaceId) {
   hideNavIcons();
   closeNavColorPanel();
   closeWorkspaceSetupsDrawer();
-  if (architektCopyPanelOpen && workspaceId !== ARCHITEKT_WORKSPACE_ID) {
-    closeArchitektCopyPanel();
-  }
+  // ARCHITEKT MODULE ARCHIVED - commented out 2025-10-05
+  // if (architektCopyPanelOpen && workspaceId !== ARCHITEKT_WORKSPACE_ID) {
+  //   closeArchitektCopyPanel();
+  // }
 
   currentWorkspace = workspaceId;
   setWorkspaceBodyClass(currentWorkspace);
@@ -5355,7 +5367,7 @@ function setWorkspaceBodyClass(workspaceId){
  document.addEventListener('DOMContentLoaded', () => {
    console.log('🚀 DOM loaded, initializing app...');
    p73Mark('dom:loaded');
-   setupArchitektCopyFeature();
+   // setupArchitektCopyFeature(); // ARCHITEKT MODULE ARCHIVED 2025-10-05
    try {
      const storedZoom = localStorage.getItem(GRID_ZOOM_STORAGE_KEY);
      const parsedZoom = storedZoom !== null ? parseInt(storedZoom, 10) : NaN;
@@ -5540,9 +5552,10 @@ function renderGridData(gridData = {}){
      changed++;
    });
    if (DEBUG_DIFF) console.log('diff changed:', changed);
-  if (architektCopyPanelOpen && isArchitektWorkspace()) {
-    renderArchitektCopyPanel({ preserveSelection: true });
-  }
+  // ARCHITEKT MODULE ARCHIVED 2025-10-05
+  // if (architektCopyPanelOpen && isArchitektWorkspace()) {
+  //   renderArchitektCopyPanel({ preserveSelection: true });
+  // }
 }
 
 function closeDetailPanel() {

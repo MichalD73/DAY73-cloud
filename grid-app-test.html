@@ -113,14 +113,12 @@
           <ul>
             <li><a href="?view=pokus">POKUS 1</a></li>
             <li><a href="?view=pokus3">POKUS 3</a></li>
-            <li><a href="?view=architekt">Architekt</a></li>
           </ul>
         </div>
       </div>
     </div>
   </div>
    <a href="?view=pokus6" data-toplink="pokus6" class="p73-topbar-link">POKUS 6</a>
-  <a href="?view=architekt" data-toplink="architekt" class="p73-topbar-link">Architekt</a>
    <a href="?view=calendar#calendar" data-toplink="calendar" class="p73-topbar-link">Kalendář</a>
    <a href="?view=assets" data-toplink="assets" class="p73-topbar-link">Assets</a>
    <a href="?view=gallery" data-toplink="gallery" class="p73-topbar-link">Galerie</a>
@@ -155,7 +153,6 @@
       { view:'banners', label:'Banery' },
       { view:'pokus2', label:'POKUS 2' },
       { view:'pokus6', label:'POKUS 6' },
-      { view:'architekt', label:'Architekt' },
        { view:'calendar', label:'Kalendář', href:'?view=calendar#calendar' },
        { view:'assets', label:'Assets' },
        { view:'gallery', label:'Galerie' },
@@ -255,13 +252,6 @@
       <span id="workspace-zoom-label" class="workspace-toolbar-zoom-label">100%</span>
       <button type="button" id="workspace-zoom-in" aria-label="Přiblížit">＋</button>
     </div>
-    <button id="architekt-copy-open" type="button" class="workspace-toolbar-button workspace-toolbar-button--icon" hidden aria-haspopup="dialog" aria-controls="architekt-copy-panel" title="Kopírovat obrázky">
-      <span class="sr-only">Kopírovat obrázky</span>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <rect x="3" y="7" width="13" height="13" rx="2"></rect>
-        <rect x="8" y="4" width="13" height="13" rx="2"></rect>
-      </svg>
-    </button>
     <div id="workspace-toolbar-setups" class="workspace-toolbar-setups" hidden>
       <label for="workspace-setup-select" class="sr-only">Sestavy</label>
       <select id="workspace-setup-select" class="workspace-toolbar-select"></select>
@@ -542,29 +532,6 @@ Další odkaz: https://example.com/page"></textarea>
  </div>
 </div>
 
-<div id="architekt-copy-panel" class="architekt-copy-backdrop" hidden>
-  <div class="architekt-copy-dialog" role="dialog" aria-modal="true" aria-labelledby="architekt-copy-title">
-    <div class="architekt-copy-header">
-      <h3 id="architekt-copy-title">Kopírovat obrázky</h3>
-      <button type="button" id="architekt-copy-close" class="architekt-copy-close" aria-label="Zavřít panel">×</button>
-    </div>
-    <div class="architekt-copy-body">
-      <p id="architekt-copy-empty" class="architekt-copy-empty" hidden>Aktuálně není žádný box s vloženým obrázkem.</p>
-      <div id="architekt-copy-grid" class="architekt-copy-grid" role="list"></div>
-    </div>
-    <div class="architekt-copy-footer">
-      <label class="architekt-copy-select-all">
-        <input type="checkbox" id="architekt-copy-select-all" />
-        <span>Vybrat vše</span>
-      </label>
-      <div class="architekt-copy-actions">
-        <button type="button" id="architekt-copy-copy" class="architekt-copy-action architekt-copy-action--primary" disabled>Kopírovat</button>
-        <button type="button" id="architekt-copy-cancel" class="architekt-copy-action">Zavřít</button>
-      </div>
-    </div>
-    <div id="architekt-copy-feedback" class="architekt-copy-feedback" role="status" aria-live="polite"></div>
-  </div>
-</div>
 <div id="notes-app" hidden>
   <div class="notes-app" role="application" aria-label="Poznámky Project_73">
     <aside class="notes-pane notes-pane--folders" aria-label="Složky poznámek">

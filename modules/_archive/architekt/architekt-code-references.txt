@@ -1,0 +1,130 @@
+1794:const ARCHITEKT_WORKSPACE_ID = 'architekt';
+1795:let architektCopyInitialized = false;
+1796:let architektCopyPanelOpen = false;
+1797:let architektCopyBusy = false;
+1798:let architektCopyItems = [];
+1799:const architektCopySelection = new Set();
+1809:  architekt: ['architekt']
+2359:    architekt: { collection: 'project73-architekt', name: "Architekt", supportsSetups: true }
+3205:    updateArchitektCopyToolbarButton();
+3273:  updateArchitektCopyToolbarButton();
+3274:  if (!isArchitektWorkspace() && architektCopyPanelOpen) {
+3275:    closeArchitektCopyPanel();
+3281:function isArchitektWorkspace(workspaceId = currentWorkspace) {
+3285:function updateArchitektCopyToolbarButton() {
+3286:  const button = document.getElementById('architekt-copy-open');
+3288:  const isArchitekt = isArchitektWorkspace();
+3289:  button.hidden = !isArchitekt;
+3290:  button.disabled = !isArchitekt || !gridDocRef;
+3293:function setupArchitektCopyFeature() {
+3294:  if (architektCopyInitialized) return;
+3295:  const openBtn = document.getElementById('architekt-copy-open');
+3296:  const closeBtn = document.getElementById('architekt-copy-close');
+3297:  const cancelBtn = document.getElementById('architekt-copy-cancel');
+3298:  const panelEl = document.getElementById('architekt-copy-panel');
+3299:  const gridEl = document.getElementById('architekt-copy-grid');
+3300:  const selectAllEl = document.getElementById('architekt-copy-select-all');
+3301:  const copyBtn = document.getElementById('architekt-copy-copy');
+3302:  const emptyEl = document.getElementById('architekt-copy-empty');
+3303:  const feedbackEl = document.getElementById('architekt-copy-feedback');
+3309:  architektCopyInitialized = true;
+3312:    if (!isArchitektWorkspace() || architektCopyBusy) return;
+3313:    openArchitektCopyPanel();
+3316:  closeBtn.addEventListener('click', () => closeArchitektCopyPanel());
+3317:  cancelBtn.addEventListener('click', () => closeArchitektCopyPanel());
+3321:      closeArchitektCopyPanel();
+3326:    toggleArchitektSelectAll(!!event.target.checked);
+3329:  copyBtn.addEventListener('click', () => handleArchitektCopy());
+3332:    const tile = event.target.closest('[data-architekt-copy-index]');
+3335:    const index = Number(tile.dataset.architektCopyIndex);
+3337:      toggleArchitektCopySelection(index);
+3341:  document.addEventListener('keydown', handleArchitektCopyKeydown);
+3343:  updateArchitektCopyToolbarButton();
+3346:function openArchitektCopyPanel() {
+3347:  const panelEl = document.getElementById('architekt-copy-panel');
+3349:  if (!isArchitektWorkspace()) return;
+3350:  if (!architektCopyPanelOpen) {
+3351:    architektCopyPanelOpen = true;
+3354:  architektCopySelection.clear();
+3355:  updateArchitektCopyFeedback('');
+3356:  renderArchitektCopyPanel({ preserveSelection: false });
+3357:  const focusTarget = document.getElementById('architekt-copy-copy');
+3361:    panelEl.querySelector('[data-architekt-copy-index]')?.focus();
+3365:function closeArchitektCopyPanel() {
+3366:  if (!architektCopyPanelOpen) return;
+3367:  const panelEl = document.getElementById('architekt-copy-panel');
+3371:  architektCopyPanelOpen = false;
+3372:  architektCopyBusy = false;
+3373:  architektCopySelection.clear();
+3374:  updateArchitektCopyFeedback('');
+3375:  updateArchitektCopyControls();
+3376:  const selectAllEl = document.getElementById('architekt-copy-select-all');
+3380:  document.getElementById('architekt-copy-open')?.focus();
+3383:function renderArchitektCopyPanel({ preserveSelection = true } = {}) {
+3384:  const gridEl = document.getElementById('architekt-copy-grid');
+3385:  const emptyEl = document.getElementById('architekt-copy-empty');
+3389:    ? Array.from(architektCopySelection).map((index) => architektCopyItems[index]?.position).filter(Boolean)
+3393:  architektCopyItems = collectArchitektImageItems();
+3394:  architektCopySelection.clear();
+3397:  architektCopyItems.forEach((item, index) => {
+3399:    if (selected) architektCopySelection.add(index);
+3404:      `<button type="button" class="architekt-copy-item${selected ? ' selected' : ''}" data-architekt-copy-index="${index}" aria-pressed="${selected ? 'true' : 'false'}" role="listitem">`
+3405:      + `<span class="architekt-copy-check">✓</span>`
+3406:      + `<span class="architekt-copy-thumb"><img src="${safeSrc}" alt="${safeTitle || safePos}" loading="lazy"></span>`
+3407:      + `<span class="architekt-copy-meta"><strong>${safePos}</strong>${safeTitle ? `<span>${safeTitle}</span>` : ''}</span>`
+3413:  emptyEl.hidden = architektCopyItems.length > 0;
+3414:  updateArchitektCopyControls();
+3417:function collectArchitektImageItems() {
+3435:function toggleArchitektCopySelection(index) {
+3436:  if (Number.isNaN(index) || index < 0 || index >= architektCopyItems.length) return;
+3437:  if (architektCopySelection.has(index)) {
+3438:    architektCopySelection.delete(index);
+3440:    architektCopySelection.add(index);
+3442:  syncArchitektCopySelectionDom();
+3443:  updateArchitektCopyControls();
+3444:  updateArchitektCopyFeedback('');
+3447:function toggleArchitektSelectAll(checked) {
+3448:  architektCopySelection.clear();
+3450:    for (let i = 0; i < architektCopyItems.length; i += 1) {
+3451:      architektCopySelection.add(i);
+3454:  syncArchitektCopySelectionDom();
+3455:  updateArchitektCopyControls();
+3456:  updateArchitektCopyFeedback('');
+3459:function syncArchitektCopySelectionDom() {
+3460:  document.querySelectorAll('[data-architekt-copy-index]').forEach((el) => {
+3461:    const idx = Number(el.dataset.architektCopyIndex);
+3462:    const selected = architektCopySelection.has(idx);
+3468:function updateArchitektCopyControls() {
+3469:  const copyBtn = document.getElementById('architekt-copy-copy');
+3470:  const selectAllEl = document.getElementById('architekt-copy-select-all');
+3472:  const selectedCount = architektCopySelection.size;
+3473:  const total = architektCopyItems.length;
+3474:  copyBtn.disabled = architektCopyBusy || selectedCount === 0;
+3484:function updateArchitektCopyFeedback(message = '', type = '') {
+3485:  const feedbackEl = document.getElementById('architekt-copy-feedback');
+3494:function setArchitektCopyBusy(flag) {
+3495:  architektCopyBusy = !!flag;
+3496:  updateArchitektCopyControls();
+3499:async function handleArchitektCopy() {
+3500:  if (architektCopyBusy || !architektCopySelection.size) return;
+3501:  const indexes = Array.from(architektCopySelection).sort((a, b) => a - b);
+3502:  const selectedItems = indexes.map((idx) => architektCopyItems[idx]).filter(Boolean);
+3505:  setArchitektCopyBusy(true);
+3506:  updateArchitektCopyFeedback('Kopíruji vybrané obrázky do schránky...', '');
+3509:    const result = await copyArchitektImages(selectedItems);
+3511:      updateArchitektCopyFeedback('Obrázky jsou ve schránce. Vlož pomocí Ctrl/⌘+V.', 'success');
+3513:      updateArchitektCopyFeedback('Obrázky jsou ve schránce jako vložené data (HTML).', 'success');
+3515:      updateArchitektCopyFeedback('HTML s odkazy na obrázky je ve schránce (vkládá vzdálené URL).', 'success');
+3517:      updateArchitektCopyFeedback('Kopírování dokončeno.', 'success');
+3520:    console.error('Architekt copy failed', error);
+3521:    updateArchitektCopyFeedback(error?.message || 'Kopírování se nepodařilo.', 'error');
+3523:    setArchitektCopyBusy(false);
+3527:async function copyArchitektImages(selection) {
+3628:function handleArchitektCopyKeydown(event) {
+3629:  if (!architektCopyPanelOpen) return;
+3632:    closeArchitektCopyPanel();
+5216:  if (architektCopyPanelOpen && workspaceId !== ARCHITEKT_WORKSPACE_ID) {
+5217:    closeArchitektCopyPanel();
+5358:   setupArchitektCopyFeature();
+5543:  if (architektCopyPanelOpen && isArchitektWorkspace()) {
+5544:    renderArchitektCopyPanel({ preserveSelection: true });
