@@ -17,11 +17,10 @@
 </script>
 
 <link rel="stylesheet" href="/DAY73-cloud/grid-app.css" />
-<link rel="stylesheet" href="/DAY73-cloud/notes-app.css" />
+<link rel="stylesheet" href="/DAY73-cloud/notes-view.css" />
 <link rel="stylesheet" href="/DAY73-cloud/modules/banners/banners.css" />
 <link rel="stylesheet" href="/DAY73-cloud/modules/mobile/mobile.css" />
 <link rel="stylesheet" href="/DAY73-cloud/modules/pokus/pokus.css" />
-<link rel="stylesheet" href="/DAY73-cloud/modules/mindmap/mindmap.css" />
 <link rel="stylesheet" href="/DAY73-cloud/dashboard-view.css" />
 <link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css" integrity="sha384-cPa8kzsYWhqpAfWOLWYIw3V0BhPi/m3lrd8tBTPxr2NrYCHRVZ7xy1cEoRGOM/03" crossorigin="anonymous" />
 <script>
@@ -78,12 +77,10 @@
  <nav class="p73-topbar-nav">
    <a href="?view=dashboard" data-toplink="dashboard" class="p73-topbar-link">Dashboard</a>
    <a href="?view=grid" data-toplink="grid" class="p73-topbar-link">Grid</a>
-  <a href="?view=goal-canvas" data-toplink="goal-canvas" class="p73-topbar-link">Goal Canvas</a>
-  <a href="?view=elektrocz" data-toplink="elektrocz" class="p73-topbar-link">elektrocz.com</a>
+   <a href="?view=elektrocz" data-toplink="elektrocz" class="p73-topbar-link">elektrocz.com</a>
   <a href="?view=notes" data-toplink="notes" class="p73-topbar-link">Poznámky</a>
   <a href="/DAY73/notes-lab.html" data-toplink="notes-lab" class="p73-topbar-link" target="_blank" rel="noopener">Notes Lab</a>
   <a href="?view=manifest" data-toplink="manifest" class="p73-topbar-link">Struktura</a>
-  <a href="?view=mindmap" data-toplink="mindmap" class="p73-topbar-link">Mindmap</a>
   <a href="?view=pokus" data-toplink="pokus" class="p73-topbar-link">POKUS</a>
   <a href="?view=mobile" data-toplink="mobile" class="p73-topbar-link">Mobil</a>
   <a href="?view=banners" data-toplink="banners" class="p73-topbar-link">Banery</a>
@@ -482,79 +479,6 @@ Další odkaz: https://example.com/page"></textarea>
  </div>
  <div id="gallery-view-grid" class="gallery-view-grid"></div>
  <div id="gallery-view-empty" class="text-sm text-gray-400"></div>
-</div>
-<div id="goal-canvas-view" class="goal-canvas-wrapper">
- <div class="goal-canvas-toolbar">
-  <h2>🎯 Goal Canvas</h2>
-  <div class="goal-canvas-toolbar-actions">
-    <div class="goal-canvas-zoom">
-      <button id="goal-canvas-zoom-out" type="button" aria-label="Oddálit">−</button>
-      <span id="goal-canvas-zoom-label" class="goal-canvas-zoom-label">100%</span>
-      <button id="goal-canvas-zoom-in" type="button" aria-label="Přiblížit">＋</button>
-    </div>
-    <button id="goal-canvas-add" type="button" class="goal-canvas-add-btn">+
-      <span>Přidat cíl</span>
-    </button>
-  </div>
- </div>
- <div class="goal-canvas-board">
-   <div class="goal-canvas-scroll">
-     <div id="goal-canvas-surface" class="goal-canvas-surface"></div>
-   </div>
-   <div id="goal-canvas-empty" class="goal-canvas-empty">
-     <strong>Začni přidáním prvního cíle.</strong>
-     <span>Tady si vizuálně poskládáš strategické záměry, priority i sny, které má Project_73 splnit.</span>
-   </div>
- </div>
-</div>
-<div id="mindmap-view" class="mindmap-view" hidden>
-  <div class="mindmap-shell">
-    <div class="mindmap-toolbar" role="toolbar" aria-label="Mindmap nástroje">
-      <div class="mindmap-toolbar-left">
-        <button id="mindmap-add-root" type="button" class="mindmap-btn mindmap-btn-primary">+ Nové téma</button>
-        <button id="mindmap-add-child" type="button" class="mindmap-btn" disabled>+ Podtéma</button>
-        <button id="mindmap-center" type="button" class="mindmap-btn">Centrovat</button>
-      </div>
-      <div class="mindmap-toolbar-right">
-        <button id="mindmap-zoom-out" type="button" class="mindmap-btn" aria-label="Oddálit">−</button>
-        <span id="mindmap-zoom-label" class="mindmap-zoom-label">100%</span>
-        <button id="mindmap-zoom-in" type="button" class="mindmap-btn" aria-label="Přiblížit">＋</button>
-      </div>
-    </div>
-    <div class="mindmap-main">
-      <div class="mindmap-stage" id="mindmap-stage" tabindex="0" aria-label="Mindmap plátno">
-        <div class="mindmap-canvas" id="mindmap-canvas">
-          <div class="mindmap-zoom-layer" id="mindmap-zoom-layer">
-            <svg id="mindmap-links" class="mindmap-links" viewBox="0 0 5000 5000" preserveAspectRatio="xMidYMid meet"></svg>
-            <div id="mindmap-nodes" class="mindmap-nodes"></div>
-          </div>
-        </div>
-        <div id="mindmap-empty" class="mindmap-empty">
-          <h3>Začni tvořit myšlenkovou mapu</h3>
-          <p>Přidej první téma pomocí tlačítka nahoře nebo dvojitým kliknutím do plátna.</p>
-        </div>
-      </div>
-      <aside class="mindmap-sidebar" id="mindmap-sidebar" aria-label="Detail vybraného tématu">
-        <div class="mindmap-sidebar-header">
-          <h2 id="mindmap-detail-heading">Vyber téma</h2>
-          <button id="mindmap-delete" type="button" class="mindmap-btn mindmap-btn-danger" disabled>🗑 Smazat</button>
-        </div>
-        <div class="mindmap-field">
-          <label for="mindmap-title-input">Nadpis</label>
-          <input id="mindmap-title-input" type="text" placeholder="Název tématu..." />
-        </div>
-        <div class="mindmap-field">
-          <label for="mindmap-content-input">Poznámky</label>
-          <textarea id="mindmap-content-input" rows="6" placeholder="Detailní popis, úkoly..."></textarea>
-        </div>
-        <div class="mindmap-field">
-          <label>Barva</label>
-          <div id="mindmap-color-grid" class="mindmap-color-grid" role="radiogroup" aria-label="Barvy tématu"></div>
-        </div>
-        <div class="mindmap-meta" id="mindmap-meta"></div>
-      </aside>
-    </div>
-  </div>
 </div>
 <div id="snippet-library-view" class="snippet-view-wrapper">
  <div class="snippet-header">
@@ -1079,12 +1003,11 @@ fetch(location.href.split('?')[0]).then(r=>r.text()).then(t=>console.log(t.inclu
 <div class="upload-indicator" id="uploadIndicator">📤 Nahrávám obrázek...</div>
 
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js" integrity="sha384-QUJ+ckWz1M+a7w0UfG1sEn4pPrbQwSxGm/1TIPyioqXBrwuT9l4f9gdHWLDLbVWI" crossorigin="anonymous"></script>
-<script type="module" src="/DAY73/notes-app.js"></script>
+<script src="/DAY73-cloud/notes-view.js"></script>
 <script type="module" src="/DAY73/manifest-view.js"></script>
 <script type="module" src="/DAY73/modules/banners/banners.js"></script>
 <script type="module" src="/DAY73/modules/mobile/mobile.js"></script>
 <script type="module" src="/DAY73/modules/pokus/pokus.js"></script>
-<script type="module" src="/DAY73/modules/mindmap/mindmap.js"></script>
 <script src="/DAY73-cloud/dashboard-view.js"></script>
 <script src="/DAY73-cloud/grid-app.js"></script>
 <!-- Card Detail Panel -->

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAY73 Notes</title>
+
+<!-- Quill Editor -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
+<!-- Notes Styles -->
+<link rel="stylesheet" href="notes-view.css">
+
+<!-- Topbar Auth & Navigation -->
+<style>
+  .standalone-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: #0079bf;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0,121,191,0.3);
+  }
+  .standalone-header h1 {
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  .standalone-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .standalone-header a,
+  .standalone-header button {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.875rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .standalone-header a:hover,
+  .standalone-header button:hover {
+    background: rgba(255,255,255,0.25);
+    transform: translateY(-1px);
+  }
+  .standalone-header .user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: white;
+    font-size: 0.875rem;
+  }
+  .standalone-header .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+  }
+  body.view-notes {
+    padding-top: 60px;
+  }
+</style>
+</head>
+<body class="view-notes">
+
+<!-- Standalone Header with Auth -->
+<div class="standalone-header">
+  <h1>📝 Poznámky</h1>
+  <div class="standalone-header-actions">
+    <div id="authContainer">
+      <button id="signInBtn" style="display:none;">Přihlásit se přes Google</button>
+      <div id="userInfo" style="display:none;">
+        <div class="user-info">
+          <img id="userAvatar" class="user-avatar" src="" alt="">
+          <span id="userName"></span>
+          <button id="signOutBtn">Odhlásit</button>
+        </div>
+      </div>
+    </div>
+    <a href="grid-app-test.html">← Hlavní aplikace</a>
+  </div>
+</div>
+
+<!-- Notes App -->
+<div id="notes-app">
+  <div class="notes-app" role="application" aria-label="Poznámky Project_73">
+    <aside class="notes-pane notes-pane--folders" aria-label="Složky poznámek">
+      <div class="notes-pane__header">
+        <div class="notes-pane__brand">
+          <span class="notes-pane__brand-title">iCloud</span>
+          <div class="notes-pane__brand-actions">
+            <button id="notes-folders-toggle" type="button" class="notes-link notes-link--ghost" aria-expanded="true" title="Skrýt panel složek">Schovat složky</button>
+            <button id="notes-folder-add" type="button" class="notes-link notes-link--new">+ Nová složka</button>
+          </div>
+        </div>
+      </div>
+      <nav id="notes-folder-tree" class="notes-folder-tree" role="tree" aria-label="Strom složek"></nav>
+    </aside>
+
+    <section class="notes-pane notes-pane--list" aria-label="Seznam poznámek">
+      <header class="notes-list-header">
+        <div class="notes-list-header__titles">
+          <h1 id="notes-current-folder-name" class="notes-list-title">Poznámky</h1>
+          <p class="notes-list-subtitle"><span id="notes-count">0</span> poznámek</p>
+        </div>
+        <div class="notes-list-header__actions">
+          <button id="notes-folders-toggle-inline" type="button" class="notes-folders-toggle-inline" aria-expanded="true" title="Schovat panel složek">Schovat složky</button>
+          <button id="notes-compact-toggle" type="button" class="notes-icon-btn notes-icon-btn--ghost" title="Přepnout kompaktní zobrazení" aria-pressed="false">
+            <span aria-hidden="true">☰</span>
+            <span class="sr-only">Přepnout kompaktní režim</span>
+          </button>
+          <button id="notes-layout-toggle" type="button" class="notes-icon-btn notes-icon-btn--ghost" title="Prohodit panel poznámek" aria-pressed="false">
+            <span aria-hidden="true">⇆</span>
+            <span class="sr-only">Prohodit panel poznámek</span>
+          </button>
+          <button id="notes-new" type="button" class="notes-icon-btn notes-icon-btn--primary" title="Nová poznámka" aria-label="Nová poznámka">
+            <span aria-hidden="true">＋</span>
+          </button>
+        </div>
+      </header>
+      <div id="notes-status" class="notes-status" role="status" aria-live="polite"></div>
+      <div id="notes-locked" class="notes-empty notes-empty--muted" hidden>
+        <strong>Přihlášení vyžadováno.</strong>
+        <p>Poznámky jsou navázané na tvůj účet, přihlas se prosím přes Google.</p>
+      </div>
+      <div id="notes-empty" class="notes-empty" hidden>
+        <strong>Zatím žádné poznámky.</strong>
+        <p>Zapiš si první nápad a vrať se k němu později.</p>
+      </div>
+      <ul id="notes-list" class="notes-list" role="listbox" aria-label="Poznámky"></ul>
+    </section>
+
+    <section class="notes-pane notes-pane--editor" aria-label="Editor poznámky">
+      <div id="notes-editor" class="notes-editor" hidden>
+        <header class="notes-editor-header">
+          <div class="notes-editor-heading">
+            <h2>Detail poznámky</h2>
+            <div class="notes-meta-wrapper">
+              <button id="notes-meta-toggle" type="button" class="notes-info-pull" aria-haspopup="true" aria-expanded="false" aria-controls="notes-meta-popover" title="Detaily poznámky">
+                <span aria-hidden="true">ℹ</span>
+                <span>Informace</span>
+              </button>
+              <div id="notes-meta-popover" class="notes-meta-info" role="dialog" hidden>
+                <div id="notes-detail-meta" class="notes-meta-info__content"></div>
+                <div id="notes-meta-empty" class="notes-meta-empty">Detaily budou dostupné po uložení.</div>
+              </div>
+            </div>
+          </div>
+          <div class="notes-editor-actions">
+            <button id="notes-delete" type="button" class="notes-toolbar-delete" hidden title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
+          </div>
+        </header>
+        <div id="notes-editor-surface" class="notes-editor-surface" aria-live="polite"></div>
+        <form id="notes-form" class="notes-editor-form" novalidate>
+          <div class="notes-editor-actions-bar">
+            <button type="submit" id="notes-save" class="notes-btn-primary">Uložit poznámku</button>
+            <button type="button" id="notes-cancel" class="notes-btn-secondary" hidden>Zrušit</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module" src="/DAY73-cloud/shared/firebase.js"></script>
+
+<!-- Notes Logic (shared with integrated version) -->
+<script src="notes-view.js"></script>
+
+<script>
+// Auth UI Management
+function waitForFirebase(callback, maxAttempts = 50) {
+  let attempts = 0;
+  const check = () => {
+    attempts++;
+    if (window.firebase && window.firebase.auth) {
+      callback();
+    } else if (attempts < maxAttempts) {
+      setTimeout(check, 100);
+    } else {
+      console.error('[Notes] Firebase failed to load');
+    }
+  };
+  check();
+}
+
+function updateAuthUI(user) {
+  const signInBtn = document.getElementById('signInBtn');
+  const userInfo = document.getElementById('userInfo');
+  const userName = document.getElementById('userName');
+  const userAvatar = document.getElementById('userAvatar');
+
+  if (user) {
+    signInBtn.style.display = 'none';
+    userInfo.style.display = 'block';
+    userName.textContent = user.displayName || user.email;
+    if (user.photoURL) {
+      userAvatar.src = user.photoURL;
+      userAvatar.style.display = 'block';
+    } else {
+      userAvatar.style.display = 'none';
+    }
+  } else {
+    signInBtn.style.display = 'block';
+    userInfo.style.display = 'none';
+  }
+}
+
+function setupAuth() {
+  const { auth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } = window.firebase;
+
+  // Listen to auth state changes
+  onAuthStateChanged(auth, (user) => {
+    updateAuthUI(user);
+  });
+
+  // Sign in handler
+  document.getElementById('signInBtn').addEventListener('click', async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error('[Notes] Sign-in error:', error);
+      alert('Přihlášení se nezdařilo. Zkus to prosím znovu.');
+    }
+  });
+
+  // Sign out handler
+  document.getElementById('signOutBtn').addEventListener('click', async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('[Notes] Sign-out error:', error);
+    }
+  });
+}
+
+// Initialize everything when ready
+waitForFirebase(() => {
+  setupAuth();
+
+  function initStandalone() {
+    if (!window.NotesView) {
+      setTimeout(initStandalone, 50);
+      return;
+    }
+    window.NotesView.init();
+  }
+  initStandalone();
+});
+</script>
+
+</body>
+</html>

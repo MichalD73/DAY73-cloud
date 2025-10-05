@@ -20,8 +20,8 @@
     document.body.classList.remove(
       'view-grid','view-snippets','view-calendar','view-deferred','view-assets','view-gallery','view-super-modul','view-goal-canvas','view-notes','view-manifest','view-banners','view-mobile','view-mindmap','view-dashboard'
     );
-   if (view !== 'notes' && window.P73Notes && typeof window.P73Notes.hide === 'function') {
-      window.P73Notes.hide();
+   if (view !== 'notes' && window.NotesView && typeof window.NotesView.hide === 'function') {
+      window.NotesView.hide();
     }
   if (view !== 'manifest' && window.P73Manifest && typeof window.P73Manifest.hide === 'function') {
     window.P73Manifest.hide();
@@ -63,9 +63,9 @@
 
     if(view === 'notes') {
       document.body.classList.add('view-notes');
-      if (window.P73Notes && typeof window.P73Notes.show === 'function') {
+      if (window.NotesView && typeof window.NotesView.show === 'function') {
         try {
-          window.P73Notes.show();
+          window.NotesView.show();
         } catch (notesErr) {
           console.warn('[P73] Notes module show() failed:', notesErr);
         }
