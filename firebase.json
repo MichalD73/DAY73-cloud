@@ -1,0 +1,14 @@
+{
+  "hosting": {
+    "site": "onlineday73",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/_archive/**",
+      "**/README.md"
+    ],
+    "cleanUrls": true
+  }
+}
