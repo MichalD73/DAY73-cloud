@@ -1506,8 +1506,8 @@ body.dnd-active .nav-icons { opacity: 0 !important; transform: translate(-50%, 8
   });
 
   // Initialize navigation overflow after DOM ready
-  if(document.readyState!=='loading'){ window.initNavOverflow && window.initNavOverflow(); }
-  else document.addEventListener('DOMContentLoaded', ()=> window.initNavOverflow && window.initNavOverflow());
+  if(document.readyState!=='loading'){ initNavOverflow(); }
+  else document.addEventListener('DOMContentLoaded', ()=> initNavOverflow());
 
   console.log('[grid-app-core] extended core loaded');
 })();
