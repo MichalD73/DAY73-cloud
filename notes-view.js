@@ -527,7 +527,9 @@ const NotesView = (() => {
       onClick: (e) => {
         e.preventDefault();
         submitContext = 'button';
-        formEl?.requestSubmit(saveBtn);
+        if (formEl) {
+          formEl.requestSubmit();
+        }
       }
     });
     wrapper.appendChild(saveBtn);
@@ -931,7 +933,9 @@ const NotesView = (() => {
       autoSaveTimer = null;
       if (!editorDirty || isSaving || detailMode === DETAIL_MODE.IDLE) return;
       submitContext = 'auto';
-      formEl?.requestSubmit(saveBtn || undefined);
+      if (formEl) {
+        formEl.requestSubmit();
+      }
     }, AUTO_SAVE_DELAY_MS);
   }
 
