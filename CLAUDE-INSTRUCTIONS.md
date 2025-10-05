@@ -2,6 +2,24 @@
 
 ## ⚠️ KRITICKÉ - PŘEČTI SI PŘI KAŽDÉ NOVÉ KONVERZACI!
 
+## 🎯 HLAVNÍ SOUBORY APLIKACE:
+
+### grid-app-test.html
+- **Co to je**: Hlavní aplikace s TOP NAVIGACÍ a všemi moduly
+- **Navigace**: `.p73-topbar-nav` - zde jsem implementoval overflow menu
+- **URL**: https://onlineday73.web.app/DAY73-cloud/grid-app-test.html
+- **Obsahuje**: Dashboard, Grid, Notes, atd.
+
+### dashboard.html
+- **Co to je**: Standalone dashboard BEZ navigace
+- **URL**: https://onlineday73.web.app/DAY73-cloud/dashboard.html
+- **Obsahuje**: Pouze dashboard obsah, žádné menu
+
+### Kdy editovat co?
+- **Overflow menu v navigaci** → `grid-app-test.html` + `grid-app-core.js`
+- **Dashboard funkce** → `dashboard-view.js`
+- **Notes funkce** → `notes-view.js`
+
 ### 🎯 Pravidlo č. 1: Pracovní adresář
 
 **VŽDY pracuj POUZE v této složce:**
