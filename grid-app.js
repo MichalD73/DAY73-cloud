@@ -3365,6 +3365,15 @@ const ready = isFirebaseReady && !!currentUser && supportsSetups;
 const setups = supportsSetups ? getActiveWorkspaceSetups() : [];
 const activeSetupId = workspaceActiveSetup[currentWorkspace] || workspacePendingActiveSetup[currentWorkspace] || null;
 
+console.log('[Setups Debug]', {
+  workspace: currentWorkspace,
+  isFirebaseReady,
+  hasUser: !!currentUser,
+  supportsSetups,
+  ready,
+  setupsCount: setups.length
+});
+
 const renderSignature = JSON.stringify({
   workspace: currentWorkspace,
   ready,
