@@ -1114,8 +1114,8 @@ const WORKSPACE_ALIAS_MAP = {
   pokus2: ['pokus2'],
   pokus3: ['pokus3'],
   pokus4: ['pokus4'],
-  pokus5: ['pokus5'],
-  pokus6: ['pokus6']
+  pokus5: ['pokus5']
+  // pokus6: ['pokus6'] // ARCHIVED 2025-10-05
   // architekt: ['architekt'] // ARCHIVED 2025-10-05
 };
 
@@ -1664,8 +1664,8 @@ function hideNavIcons(){
     pokus2: { collection: 'project73-pokus2', name: "POKUS 2", supportsSetups: true },
     pokus3: { collection: 'project73-pokus3', name: "POKUS 3", supportsSetups: true },
     pokus4: { collection: 'project73-pokus4', name: "POKUS 4", supportsSetups: true },
-    pokus5: { collection: 'project73-pokus5', name: "POKUS 5", supportsSetups: true },
-    pokus6: { collection: 'project73-pokus6', name: "POKUS 6", supportsSetups: true }
+    pokus5: { collection: 'project73-pokus5', name: "POKUS 5", supportsSetups: true }
+    // pokus6: { collection: 'project73-pokus6', name: "POKUS 6", supportsSetups: true } // ARCHIVED 2025-10-05
     // architekt: { collection: 'project73-architekt', name: "Architekt", supportsSetups: true } // ARCHIVED 2025-10-05
   };
 }
